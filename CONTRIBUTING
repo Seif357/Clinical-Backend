@@ -1,0 +1,69 @@
+# Contributing Guidelines – DoctorHub SaaS
+
+## 1) Golden Rule
+Never commit directly to:  
+- `main`  
+- `develop`  
+
+All work must be done in:  
+- `feature/<name>`  
+- `bugfix/<name>`  
+- `hotfix/<name>`  
+
+---
+
+## 2) Workflow for a New Feature
+1. `git checkout develop`  
+2. `git pull` to get the latest updates  
+3. Create a **feature branch**: `git checkout -b feature/<name>`  
+4. Work on your feature  
+5. `git push origin feature/<name>`  
+6. Create a **Pull Request** → target: `develop`  
+7. Wait for **Code Review**
+
+---
+
+## 3) Commit Message Guidelines
+- `feat:` for new features  
+- `fix:` for bug fixes  
+- `refactor:` for improvements  
+- `docs:` for documentation  
+- `style:` formatting only  
+- `test:` adding/modifying tests  
+
+**Examples:**  
+feat: add doctor authentication API
+fix: dashboard list bug
+
+
+## 4) Pull Request Rules
+- No PR without a description  
+- No PR if CI/tests fail  
+- PR target must be `develop` only  
+- PR title should clearly describe the purpose  
+- Avoid large PRs → break into smaller ones if needed  
+
+
+## 5) Code Style Rules
+- **Backend:** follow .NET conventions  
+- **Frontend:** ESLint + Prettier  
+- Separate **logic** from **UI**  
+- No business logic inside controllers  
+
+
+## 6) Forbidden Actions
+- Commit directly to `develop` or `main`  
+- Push directly without a PR  
+- Local merge into `develop`  
+- Force push on any protected branch  
+
+
+## 7) Running the Project Locally
+
+### Backend (.NET)
+1. Make sure you have **.NET 9 SDK** installed.  
+2. Clone the repository:  
+   ```bash
+   git clone <repo-url>
+   cd DoctorHubBackend
+dotnet run

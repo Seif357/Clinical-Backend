@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="FullSignature">
+  <Class Name="Domain.Models.Auth.User">
+    <Position X="16.5" Y="0.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AACCQAAAACAAAAAAAAAAQAAAAAAAAAAAAQAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Auth\User.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models.Clininc.Appointment_Request">
+    <Position X="19.75" Y="1.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\AppointmentRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models.Clininc.Doctor">
+    <Position X="12.25" Y="4" Width="3.25" />
+    <TypeIdentifier>
+      <HashCode>AQAAAAAAAAAAAAAQAAAAAAAAAAAAAACABAAAAAAAAAg=</HashCode>
+      <FileName>Models - Copy\Clininc\DoctorProfile.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models.Clininc.Doctor_Request">
+    <Position X="22" Y="1.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAQAAAAAAgAEAAAAAAAAAAAAAAAEAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\DoctorRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models.Clininc.Patient">
+    <Position X="17" Y="4" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>IAAAAIAAAAAAAACAAAAAAAEAAAAQAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\PatientProfile.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models.Clininc.Patient_Response">
+    <Position X="20" Y="4.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAQAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\PatientResponse.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models___Copy.Clininc.MedicalRecord">
+    <Position X="22.5" Y="4.25" Width="1.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAQAAAAAAAAAAAAABAAIAAAAAAAACAA=</HashCode>
+      <FileName>Models - Copy\Clininc\MedicalRecord.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models___Copy.Clininc.MedicalHistory" Collapsed="true">
+    <Position X="20.75" Y="6.75" Width="1.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\MedicalHistory.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models___Copy.Clininc.Medication" Collapsed="true">
+    <Position X="22.5" Y="6.75" Width="1.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\Prescription.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models___Copy.Clininc.TestResult" Collapsed="true">
+    <Position X="20.75" Y="7.75" Width="1.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\TestResult.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Domain.Models___Copy.Clininc.Visit" Collapsed="true">
+    <Position X="22.5" Y="7.75" Width="1.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models - Copy\Clininc\Visit.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

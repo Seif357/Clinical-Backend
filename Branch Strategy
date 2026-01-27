@@ -1,0 +1,38 @@
+# DoctorHub SaaS – Git Branch Strategy
+
+**Main Branches:**  
+- `main` → stable production version  
+- `develop` → current development version  
+
+**Feature Branches:**  
+- Naming: `feature/<feature-name>`  
+- Examples: `feature/authentication`, `feature/dashboard-ui`, `feature/patient-file`  
+- Rules: branch from `develop` only; no direct edits on `develop` or `main`.  
+
+**Bugfix Branches:**  
+- Naming: `bugfix/<description>`  
+- Examples: `bugfix/login-token-expired`  
+- Used for non-critical bugs during development; branch from `develop`.  
+
+**Hotfix Branches:**  
+- Naming: `hotfix/<description>`  
+- Used for critical production issues only; branch from `main`.  
+- After fix: merge into `main` (production) and `develop` (development).  
+
+**Merge Rules:**  
+- No direct merges.  
+- All merges via **Pull Request**.  
+- Require 1–2 reviewers.  
+- CI/tests must pass before merge.  
+
+**Creating a Feature Branch:**  
+```bash
+git checkout develop
+git pull
+git checkout -b feature/<feature-name>
+
+**Finishing a Feature:**  
+
+git add .
+git commit -m "feat: <short description>"
+git push origin feature/<feature-name>
