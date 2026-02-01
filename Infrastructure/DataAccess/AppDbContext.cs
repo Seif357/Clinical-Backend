@@ -18,10 +18,10 @@ namespace Infrastructure
         public DbSet<AppUser> User { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<AppointmentRequest> AppointmentRequests { get; set; }
-        public DbSet<DoctorProfile>  DoctorProfiles { get; set; }
+        public DbSet<DoctorProfile> DoctorProfiles { get; set; }
         public DbSet<DoctorRequestImage> DoctorRequestImages { get; set; }
         public DbSet<PatientProfile> PatientProfiles { get; set; }
-        public DbSet<PatientResponse>  PatientResponses { get; set; }
+        public DbSet<PatientResponse> PatientResponses { get; set; }
         public DbSet<PatientResponseImage> PatientResponseImages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)

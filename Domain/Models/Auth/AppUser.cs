@@ -12,5 +12,7 @@ namespace Domain.Models.Auth
         public string ImageUrl { get; set; }
         public ulong RowVersion { get; set; }
         public bool IsBanned { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
+
     }
 }
