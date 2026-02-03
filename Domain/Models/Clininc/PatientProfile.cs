@@ -7,18 +7,14 @@ using System.Text;
 
 namespace Domain.Models.Clininc
 {
-    public class PatientProfile
+    public class PatientProfile : AppUser
     {
-        [Key]
-        [ForeignKey(nameof(User))]
-        public int Id { get; set; }
         public int DoctorProfileId { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public string Gender { get; set; }
         public string MedicalRecord { get; set; }
         public string PatientStatus { get; set; } = "Ongoing"; // Ongoing, Closed
         public DateTime? LastSyncAt { get; set; }
-        public AppUser User { get; set; }
         public DoctorProfile Doctor { get; set; }
         public ICollection<DoctorRequest> DoctorRequests { get; set; }
         public ICollection<AppointmentRequest> AppointmentRequests { get; set; }

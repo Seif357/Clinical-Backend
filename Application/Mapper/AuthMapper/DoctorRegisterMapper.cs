@@ -2,20 +2,22 @@
 using Application.Dto.AuthDto;
 using Domain.Models;
 using Domain.Models.Auth;
+using Domain.Models.Clininc;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Application.Mapper
 {
-    public static class RegisterMapper
+    public static class DoctorRegisterMapper
     {
-        public static AppUser ToEntity(this RegisterDto dto)
+        public static DoctorProfile ToEntity(this DoctorRegisterDto dto)
         {
-            return new AppUser()
+            return new DoctorProfile()
             {
                 UserName = dto.Username,
                 Email = dto.Email,
                 PhoneNumber = dto.PhoneNumber,
+                CertificationNumber = dto.certificationNumber
             };
         }
     }

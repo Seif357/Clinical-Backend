@@ -29,49 +29,29 @@ namespace API.Controllers
             _logger = logger;
             _auth = authService;
         }
-
         [HttpPost("register")]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        public async Task<IActionResult> DoctorRegister([FromBody] DoctorRegisterDto registerDto)
         {
-            var result = await _auth.RegisterServiceAsync(registerDto);
+            var result = await _auth.DoctorRegisterServiceAsync(registerDto);
             if (!result.Success)
             {
                 return BadRequest(result);
             }
             return Ok(result);
         }
-        [HttpPost("registeration-login")]
+        [HttpPost("register")]
         [AllowAnonymous]
-        public async Task<IActionResult> RegisterationLogin([FromBody] RegisterDto registerDto)
+        public async Task<IActionResult> PatientRegister([FromBody] PatientRegisterDto registerDto)
         {
-            var result = await _auth.RegisterServiceAsync(registerDto);
+            var result = await _auth.PatientRegisterServiceAsync(registerDto);
             if (!result.Success)
             {
                 return BadRequest(result);
             }
-            var dto = new LoginDto(
-                registerDto.Email,
-                registerDto.Password
-            );
-
-            var authResult = await _auth.LoginServiceAsync(dto);
-            if (!authResult.Success)
-            {
-                return BadRequest(result);
-            }
-            Response.Cookies
-    .Append("refreshToken", authResult.RefreshToken, new CookieOptions
-    {
-        HttpOnly = true,
-        Secure = true,
-        SameSite = SameSiteMode.None,
-        Expires = authResult.RefreshTokenExpiration,
-        IsEssential = true
-    });
-            authResult.RefreshToken = null;
             return Ok(result);
         }
+        
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginDto dto)

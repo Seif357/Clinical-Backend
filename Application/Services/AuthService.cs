@@ -29,7 +29,7 @@ namespace Application.Services
         IRefreshTokenRepository refreshTokenRepository) : IAuthService
 
     {
-        public async Task<Result> RegisterServiceAsync(RegisterDto registerDto)
+        public async Task<Result> PatientRegisterServiceAsync(PatientRegisterDto registerDto)
         {
 
             Result result = await CheckExistence(registerDto.Username,registerDto.Email,registerDto.PhoneNumber);
@@ -55,6 +55,51 @@ namespace Application.Services
                     transaction.Rollback();
                     result.Success = false;
                     result.Message = $"Failed to create new user! {string.Join(", ",creationResult.Errors.Select(e => e.Description))}";
+                    return result;
+                }
+
+
+                await context.SaveChangesAsync();
+                transaction.Commit();
+                result.Message = AuthConstants.Messages.UserRegisteredSuccessfully;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                result.Success = false;
+                result.Message = ex.Message;
+                result.Data = ex;
+                return result;
+            }
+        }
+        public async Task<Result> DoctorRegisterServiceAsync(DoctorRegisterDto registerDto)
+        {
+
+            Result result = await CheckExistence(registerDto.Username, registerDto.Email, registerDto.PhoneNumber);
+            if (!result.Success)
+            {
+                return result;
+            }
+            if (registerDto.Password != registerDto.ConfirmPassword)
+            {
+                result.Success = false;
+                result.Message = "Password doesn't match";
+                return result;
+            }
+            var newUser = registerDto.ToEntity();
+
+            using var transaction = await context.Database.BeginTransactionAsync();
+            transaction.GetDbTransaction();
+            try
+
+            {
+                var creationResult = await userManager.CreateAsync(newUser, registerDto.Password);
+                if (!creationResult.Succeeded)
+                {
+                    transaction.Rollback();
+                    result.Success = false;
+                    result.Message = $"Failed to create new user! {string.Join(", ", creationResult.Errors.Select(e => e.Description))}";
                     return result;
                 }
 

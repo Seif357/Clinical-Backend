@@ -7,12 +7,9 @@ using System.Text;
 
 namespace Domain.Models.Clininc
 {
-    public class DoctorProfile
+    public class DoctorProfile : AppUser
     {
-        [Key]
-        [ForeignKey(nameof(User))]
-        public int Id { get; set; }
-        public AppUser User { get; set; }
+        public string CertificationNumber { get; set; }
         public ICollection<PatientProfile> Patients { get; set; }
         public ICollection<DoctorRequest> DoctorRequests { get; set; }
         public ICollection<AppointmentRequest> AppointmentRequests { get; set; }

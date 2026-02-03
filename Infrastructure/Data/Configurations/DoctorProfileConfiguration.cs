@@ -12,12 +12,6 @@ namespace Infrastructure.Data.Configurations
     {
         public void Configure (EntityTypeBuilder<DoctorProfile> builder)
         {
-            builder.HasKey(e => e.Id);
-
-            builder.HasOne(d => d.User)
-            .WithOne()
-            .HasForeignKey<DoctorProfile>(d => d.Id) // Id is BOTH PK and FK
-            .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

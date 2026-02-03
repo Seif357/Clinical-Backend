@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Application.Validators
 {
-    public class RegisterDtoValidator : AbstractValidator<RegisterDto>
+    public class RegisterDtoValidator : AbstractValidator<PatientRegisterDto>
     {// tode: add custom validation
         public RegisterDtoValidator()
         {

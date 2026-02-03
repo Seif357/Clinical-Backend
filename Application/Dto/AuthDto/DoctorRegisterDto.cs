@@ -4,12 +4,13 @@ using System.Text;
 
 namespace Application.Dto.AuthDto
 {
-    public record RegisterDto
+    public record DoctorRegisterDto
    (
  string Username,
  string Email,
  string PhoneNumber,
  string Password,
- string ConfirmPassword
+ string ConfirmPassword,
+ string certificationNumber
 );
 }
