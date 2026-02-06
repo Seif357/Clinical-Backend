@@ -10,7 +10,9 @@ namespace Domain.Models.Auth
     { 
         public gender Gender { get; set; }
         public bool IsDeleted { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; }
+        public ulong RowVersion { get; set; }
+
     }
 }
