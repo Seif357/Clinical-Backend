@@ -10,6 +10,6 @@ namespace Domain.Models.Communication
         public int DoctorRequestId { get; set; }
         public string Message { get; set; }
         public string Subject { get; set; }
-        public ICollection<PatientResponseImages> ImagePath { get; set; }
+        public ICollection<PatientResponseImage> PatientResponseImages { get; set; }
     }
 }

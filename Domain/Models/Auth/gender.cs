@@ -1,6 +1,6 @@
 ﻿namespace Domain.Models.Auth
 {
-    public enum gender
+    public enum Gender
     {
         Male = 1,
         Female,

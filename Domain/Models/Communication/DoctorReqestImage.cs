@@ -4,9 +4,9 @@ using System.Text;
 
 namespace Domain.Models.Communication
 {
-    public class PatientRequestImages : ParentEntity
+    public class DoctorReqestImage: ParentEntity
     {
         public string ImagePath { get; set; }
-        public int PatientRequestId { get; set; }
+        public int DoctorRequestId { get; set; }
     }
 }

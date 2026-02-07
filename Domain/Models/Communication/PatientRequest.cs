@@ -10,7 +10,7 @@ namespace Domain.Models.Communication
         public string DoctorId { get; set; }
         public string Message { get; set; }
         public string Subject { get; set; }
-        public ICollection<PatientRequestImages> ImagePath { get; set; }
+        public ICollection<PatientRequestImage> PatientRequestImages { get; set; }
         public ICollection<DateOnly> AppointmentRequestedDates { get; set; }
     }
 }

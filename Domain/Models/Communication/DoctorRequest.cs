@@ -11,7 +11,7 @@ namespace Domain.Models.Communication
         public RequestType RequestType { get; set; }
         public string Message { get; set; }
         public string Subject { get; set; }
-        public ICollection<DoctorReqestImages> ImagePath { get; set; }
+        public ICollection<DoctorReqestImage> DoctorReqestImages { get; set; }
 
     }
 }
