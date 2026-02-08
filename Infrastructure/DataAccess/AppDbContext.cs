@@ -18,6 +18,7 @@ namespace Infrastructure.DataAccess
     : IdentityDbContext<AppUser, IdentityRole<int>, int>(options)
     {
         public DbSet<AppUser> AppUsers { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<MedicalRecord> MedicalRecords { get; set; }
