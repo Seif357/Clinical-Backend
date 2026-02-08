@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Domain.Models.AI
 {
-    public class ModelInput
+    public class ModelInput : ParentEntity
     {
         public string HistopathologyImagePath { get; set; }
     }

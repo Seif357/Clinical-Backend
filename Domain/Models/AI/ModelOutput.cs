@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Domain.Models.AI
 {
-    public class ModelOutput
+    public class ModelOutput : ParentEntity
     {
         public string Classification { get; set; }
     }

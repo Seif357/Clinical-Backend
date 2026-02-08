@@ -1,14 +1,18 @@
-﻿using System;
+﻿using Domain.Models.Auth;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace Domain.Models
 {
     public class Patient
     {
-        public int user_id { get; set; }
+        [Key]
+        public int UserId { get; set; }
         public DateTime DateOfBirth { get; set; }
-        public BloodType blood_type { get; set; }
-        public MedicalRecord medicalRecord { get; set; }
+        public BloodType BloodType { get; set; }
+        public MedicalRecord MedicalRecord { get; set; }
+        public AppUser PatientData { get; set; }
     }
 }
