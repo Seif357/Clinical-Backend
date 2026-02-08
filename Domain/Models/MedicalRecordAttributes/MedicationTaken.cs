@@ -1,4 +1,4 @@
-﻿namespace Domain.Models.MedicalRecord
+﻿namespace Domain.Models.MedicalRecordAttributes
 {
     public class MedicationTaken: ParentEntity
     {

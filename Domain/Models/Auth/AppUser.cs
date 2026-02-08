@@ -8,7 +8,7 @@ namespace Domain.Models.Auth
 {
     public class AppUser: IdentityUser<int>
     { 
-        public gender Gender { get; set; }
+        public Gender Gender { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; }

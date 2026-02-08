@@ -1,6 +1,6 @@
-﻿namespace Domain.Models.MedicalRecord
+﻿namespace Domain.Models.MedicalRecordAttributes
 {
-    public class Visits : ParentEntity
+    public class Visit : ParentEntity
     {
         public DateTime Date { get; set; }
         public string DoctorName { get; set; }
