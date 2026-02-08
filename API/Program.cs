@@ -14,7 +14,6 @@ namespace API
 
             builder.Services.AddControllers();
             builder.Services.AddInfrastructure(builder.Configuration);
-            builder.Services.AddJwtService(builder.Configuration);
             var app = builder.Build();
 
             app.UseHttpsRedirection();

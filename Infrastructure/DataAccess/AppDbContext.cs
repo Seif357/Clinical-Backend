@@ -17,14 +17,14 @@ namespace Infrastructure.DataAccess
     public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<AppUser, IdentityRole<int>, int>(options)
     {
-        public DbSet<AppUser> AppUsers { get; set; }
+        public DbSet<AppUser> Users { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<MedicalRecord> MedicalRecords { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
         public DbSet<FamilyCondition> FamilyConditions { get; set; }
-        public DbSet<MedicationTaken> MedicationTakens { get; set; }
+        public DbSet<PrescribedMedication> PrescribedMedications { get; set; }
         public DbSet<Surgery> Surgeries { get; set; }
         public DbSet<TestTaken> TestsTaken { get; set; }
         public DbSet<Visit> Visits { get; set; }

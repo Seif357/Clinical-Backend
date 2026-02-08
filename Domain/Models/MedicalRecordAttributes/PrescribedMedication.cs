@@ -1,6 +1,6 @@
 ﻿namespace Domain.Models.MedicalRecordAttributes
 {
-    public class MedicationTaken: ParentEntity
+    public class PrescribedMedication: ParentEntity
     {
         public string Name { get; set; }
         public string Dosage { get; set; }
