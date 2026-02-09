@@ -10,7 +10,7 @@ namespace Domain.Models
     {
         [Key]
         public int UserId { get; set; }
-        public DateTime DateOfBirth { get; set; }
+        public DateOnly DateOfBirth { get; set; }
         public BloodType BloodType { get; set; }
         public MedicalRecord MedicalRecord { get; set; }
         public AppUser PatientData { get; set; }

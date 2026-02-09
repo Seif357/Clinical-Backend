@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Domain.Models
 {
-    public class Doctor : ParentEntity
+    public class Doctor
     {
         [Key]
         public int UserId { get; set; }
