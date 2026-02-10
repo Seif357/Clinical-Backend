@@ -1,18 +1,17 @@
 ﻿using System.ComponentModel.DataAnnotations;
-
 namespace Domain.Models.Auth;
-
 public class RefreshToken
 {
-    [Key]
-    public string Token { get; set; } = Guid.NewGuid().ToString();
-    public int UserId { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public bool IsRevoked { get; set; }
-    public string? ReplacedByToken { get; set; }
-    public string? RevokeReason { get; set; }
-    public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
-    public bool IsActive => !IsRevoked && !IsExpired;
-
+    public Guid Id { get; set; }
+public string Token { get; set; } = string.Empty;
+public string UserId { get; set; } = string.Empty;
+public DateTime CreatedAt { get; set; }
+public DateTime ExpiresAt { get; set; }
+public DateTime? RevokedAt { get; set; }
+public string? ReplacedByToken { get; set; }
+public string? ReasonRevoked { get; set; }
+public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+public bool IsRevoked => RevokedAt != null;
+public bool IsActive => !IsRevoked && !IsExpired;
+public AppUser User { get; set; } = null!;
 }
