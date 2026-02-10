@@ -33,7 +33,6 @@ public class DatabaseSeeder
             {
                 UserName = "admin",
                 Email = "admin@gmail.com",
-                Gender = Gender.Male,
                 PhoneNumber = "01022003571"
             };
             var result = await userManager.CreateAsync(adminUser, "admin");
@@ -49,7 +48,6 @@ public class DatabaseSeeder
             {
                 UserName = "doctor",
                 Email = "doctor@gmail.com",
-                Gender = Gender.Male,
                 PhoneNumber = "01022003571"
             };
             var result = await userManager.CreateAsync(appUser, "doctor");
@@ -58,8 +56,9 @@ public class DatabaseSeeder
                 await userManager.AddToRoleAsync(appUser, "Doctor");
                 var doctorUser = new Doctor
                 {
-                    UserId =appUser.Id
-                    
+                    UserId =appUser.Id,
+                    Gender = Gender.Male
+
                 };
             }
 
@@ -70,7 +69,6 @@ public class DatabaseSeeder
             {
                 UserName = "patient",
                 Email = "patient@gmail.com",
-                Gender = Gender.Male,
                 PhoneNumber= "01022003571"
             };
             var result = await userManager.CreateAsync(appUser, "patient");
@@ -82,6 +80,7 @@ public class DatabaseSeeder
                     UserId = appUser.Id,
                     DateOfBirth = DateOnly.FromDateTime(DateTime.Now),
                     BloodType = BloodType.B_Positive,
+                    Gender = Gender.Male
                 };
             }
         }

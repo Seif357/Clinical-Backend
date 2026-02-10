@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Domain.Models
 {
-    public class Patient
+    public class Patient : BaseUser
     {
         [Key]
         public int UserId { get; set; }
