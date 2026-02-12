@@ -3,6 +3,7 @@ using Domain.Models.Auth;
 using Infrastructure.DataAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Numerics;
 
 namespace Infrastructure.Seeding;
@@ -11,6 +12,8 @@ public class DatabaseSeeder
 {
     public static async Task SeedAsync(AppDbContext context, UserManager<AppUser> userManager, RoleManager<IdentityRole<int>> roleManager)
     {
+        using var transaction = await context.Database.BeginTransactionAsync();
+        transaction.GetDbTransaction();
         // Seed roles
         string[] roleNames = { "Admin", "Patient", "Doctor" };
 
@@ -33,13 +36,18 @@ public class DatabaseSeeder
             {
                 UserName = "admin",
                 Email = "admin@gmail.com",
-                PhoneNumber = "01022003571"
+                PhoneNumber = "01022003571",
+                EmailConfirmed = true
             };
-            var result = await userManager.CreateAsync(adminUser, "admin");
+            var result = await userManager.CreateAsync(adminUser, "Admin@123");
 
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+            else
+            {
+                throw new Exception(string.Join("\n", result.Errors.Select(e => e.Description)));
             }
         }
         if(await userManager.FindByNameAsync("doctor")==null)
@@ -48,18 +56,27 @@ public class DatabaseSeeder
             {
                 UserName = "doctor",
                 Email = "doctor@gmail.com",
-                PhoneNumber = "01022003571"
+                PhoneNumber = "01022003571",
+                EmailConfirmed = true
+
             };
-            var result = await userManager.CreateAsync(appUser, "doctor");
+            var result = await userManager.CreateAsync(appUser, "Doctor@123");
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(appUser, "Doctor");
+                var userObject = userManager.FindByNameAsync("doctor");
                 var doctorUser = new Doctor
                 {
-                    UserId =appUser.Id,
-                    Gender = Gender.Male
-
+                    UserId = userObject.Id,
+                    Gender = Gender.Male,
+                    ProfessionalPracticeLicense= "Balz",
+                    IssuingAuthority= "Egyptian Medical Syndicate"
                 };
+                var DoctorResult = await context.Doctors.AddAsync(doctorUser);
+            }
+            else
+            {
+                throw new Exception(string.Join("\n", result.Errors.Select(e => e.Description)));
             }
 
         }
@@ -69,20 +86,30 @@ public class DatabaseSeeder
             {
                 UserName = "patient",
                 Email = "patient@gmail.com",
-                PhoneNumber= "01022003571"
+                PhoneNumber = "01022003571",
+                EmailConfirmed = true
+
             };
-            var result = await userManager.CreateAsync(appUser, "patient");
+            var result = await userManager.CreateAsync(appUser, "Patient@123");
             if (result.Succeeded)
             {
-                await userManager.AddToRoleAsync(appUser, "Patient");
-                var patientUser = new Patient
-                {
-                    UserId = appUser.Id,
-                    DateOfBirth = DateOnly.FromDateTime(DateTime.Now),
-                    BloodType = BloodType.B_Positive,
-                    Gender = Gender.Male
-                };
+                var RoleResult = await userManager.AddToRoleAsync(appUser, "Patient");
+                var userObject = userManager.FindByNameAsync("patient");
+                    var patientUser = new Patient
+                    {
+                        UserId = userObject.Id,
+                        DateOfBirth = DateOnly.FromDateTime(DateTime.Now),
+                        BloodType = BloodType.B_Positive,
+                        Gender = Gender.Male
+                    };
+                    var PatientResult = await context.Patients.AddAsync(patientUser);
+            }
+            else
+            {
+                throw new Exception(string.Join("\n", result.Errors.Select(e => e.Description)));
             }
         }
+        await context.SaveChangesAsync();
+        transaction.Commit();
     }
 }

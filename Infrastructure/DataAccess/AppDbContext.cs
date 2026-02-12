@@ -42,7 +42,18 @@ namespace Infrastructure.DataAccess
         protected override void OnModelCreating(ModelBuilder builder)
             {
                 base.OnModelCreating(builder);
-            }
+            builder.Entity<Patient>()
+                .Property(p => p.UserId)
+                .ValueGeneratedNever();
+            builder.Entity<Doctor>()
+                .Property(p => p.UserId)
+                .ValueGeneratedNever();
+            builder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
 
     }
 }

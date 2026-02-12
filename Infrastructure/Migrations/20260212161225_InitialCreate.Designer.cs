@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260208230826_InitialCreate")]
+    [Migration("20260212161225_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -43,6 +43,9 @@ namespace Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -68,6 +71,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -101,9 +107,6 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<int>("Gender")
-                        .HasColumnType("int");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -162,8 +165,12 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Models.Auth.RefreshToken", b =>
                 {
-                    b.Property<string>("Token")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("AppUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -171,19 +178,27 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
+                    b.Property<string>("ReasonRevoked")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ReplacedByToken")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("RevokeReason")
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("Token");
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppUserId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
                 });
@@ -208,6 +223,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -247,6 +265,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("RequestType")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Subject")
                         .IsRequired()
@@ -288,6 +309,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("PatientRequest_Id")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -326,6 +350,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -358,6 +385,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("PatientRequestId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -393,6 +423,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("PatientId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -426,6 +459,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("PatientResponseId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -439,36 +475,29 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Models.Doctor", b =>
                 {
                     b.Property<int>("UserId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DoctorDataId")
+                    b.Property<int>("Gender")
                         .HasColumnType("int");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool?>("IsLicenseVerified")
                         .HasColumnType("bit");
 
-                    b.Property<string>("LicenseCertificate")
+                    b.Property<string>("IssuingAuthority")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateOnly>("LicenseExpirationDate")
+                    b.Property<DateOnly?>("LicenseExpirationDate")
                         .HasColumnType("date");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("ProfessionalPracticeLicense")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserId");
-
-                    b.HasIndex("DoctorDataId");
 
                     b.ToTable("Doctors");
                 });
@@ -489,6 +518,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("PatientId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -525,6 +557,9 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Reaction")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Severity")
                         .IsRequired()
@@ -568,6 +603,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -610,6 +648,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
@@ -651,6 +692,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -688,6 +732,9 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Result")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -731,6 +778,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
                     b.Property<string>("Treatment_Plan")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -748,23 +798,21 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Models.Patient", b =>
                 {
                     b.Property<int>("UserId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
-
-                    b.Property<int>("BloodType")
+                    b.Property<int?>("BloodType")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("DateOfBirth")
-                        .HasColumnType("datetime2");
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
 
-                    b.Property<int>("PatientDataId")
+                    b.Property<int>("Gender")
                         .HasColumnType("int");
+
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserId");
-
-                    b.HasIndex("PatientDataId");
 
                     b.ToTable("Patients");
                 });
@@ -785,6 +833,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -810,6 +861,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<int>("ScheduleId")
                         .HasColumnType("int");
@@ -963,6 +1017,21 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Models.Auth.RefreshToken", b =>
+                {
+                    b.HasOne("Domain.Models.Auth.AppUser", null)
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("AppUserId");
+
+                    b.HasOne("Domain.Models.Auth.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Models.Communication.DoctorReqestImage", b =>
                 {
                     b.HasOne("Domain.Models.Communication.DoctorRequest", null)
@@ -994,7 +1063,7 @@ namespace Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Models.Auth.AppUser", "DoctorData")
                         .WithMany()
-                        .HasForeignKey("DoctorDataId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1056,7 +1125,7 @@ namespace Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Models.Auth.AppUser", "PatientData")
                         .WithMany()
-                        .HasForeignKey("PatientDataId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1123,6 +1192,11 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Models.Auth.AppUser", b =>
+                {
+                    b.Navigation("RefreshTokens");
+                });
+
             modelBuilder.Entity("Domain.Models.Communication.DoctorRequest", b =>
                 {
                     b.Navigation("DoctorReqestImages");
@@ -1155,8 +1229,7 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Models.Patient", b =>
                 {
-                    b.Navigation("MedicalRecord")
-                        .IsRequired();
+                    b.Navigation("MedicalRecord");
                 });
 
             modelBuilder.Entity("Domain.Models.Schedule.Schedule", b =>
