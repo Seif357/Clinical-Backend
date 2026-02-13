@@ -1,21 +1,23 @@
-using System.Reflection;
 using Application;
 using Infrastructure;
+using Infrastructure.Seeding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
+using System.Reflection;
 
 namespace API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddControllers();
-            builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddInfrastructureAsync(builder.Configuration,builder.Environment);
+            builder.Services.AddApplication(builder.Configuration);
             builder.Services.AddOpenApi();
             var app = builder.Build();
             app.MapOpenApi();

@@ -48,7 +48,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModelInputs");
+                    b.ToTable("ModelInputs", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.AI.ModelOutput", b =>
@@ -77,7 +77,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModelOutputs");
+                    b.ToTable("ModelOutputs", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Auth.AppUser", b =>
@@ -197,7 +197,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorReqestImage", b =>
@@ -231,7 +231,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("DoctorRequestId");
 
-                    b.ToTable("DoctorReqestImages");
+                    b.ToTable("DoctorReqestImages", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorRequest", b =>
@@ -275,7 +275,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DoctorRequests");
+                    b.ToTable("DoctorRequests", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorResponse", b =>
@@ -314,7 +314,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DoctorResponses");
+                    b.ToTable("DoctorResponses", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientRequest", b =>
@@ -359,7 +359,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PatientRequests");
+                    b.ToTable("PatientRequests", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientRequestImage", b =>
@@ -393,7 +393,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PatientRequestId");
 
-                    b.ToTable("PatientRequestImages");
+                    b.ToTable("PatientRequestImages", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientResponse", b =>
@@ -432,7 +432,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PatientResponses");
+                    b.ToTable("PatientResponses", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientResponseImage", b =>
@@ -466,7 +466,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PatientResponseId");
 
-                    b.ToTable("PatientResponseImages");
+                    b.ToTable("PatientResponseImages", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Doctor", b =>
@@ -496,7 +496,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Doctors");
+                    b.ToTable("Doctors", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecord", b =>
@@ -527,7 +527,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("PatientId")
                         .IsUnique();
 
-                    b.ToTable("MedicalRecords");
+                    b.ToTable("MedicalRecords", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
@@ -569,7 +569,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Allergies");
+                    b.ToTable("Allergies", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
@@ -610,7 +610,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("FamilyConditions");
+                    b.ToTable("FamilyConditions", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.PrescribedMedication", b =>
@@ -658,7 +658,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("PrescribedMedications");
+                    b.ToTable("PrescribedMedications", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
@@ -699,7 +699,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Surgeries");
+                    b.ToTable("Surgeries", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
@@ -740,7 +740,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("TestsTaken");
+                    b.ToTable("TestsTaken", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
@@ -789,7 +789,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Visits");
+                    b.ToTable("Visits", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Patient", b =>
@@ -811,7 +811,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Patients");
+                    b.ToTable("Patients", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Schedule.Schedule", b =>
@@ -839,7 +839,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Schedules");
+                    b.ToTable("Schedules", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Schedule.ScheduleSlot", b =>
@@ -878,7 +878,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ScheduleId");
 
-                    b.ToTable("ScheduleSlots");
+                    b.ToTable("ScheduleSlots", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>

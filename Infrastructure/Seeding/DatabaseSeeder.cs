@@ -4,16 +4,15 @@ using Infrastructure.DataAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
 using System.Numerics;
 
 namespace Infrastructure.Seeding;
 
 public class DatabaseSeeder
 {
-    public static async Task SeedAsync(AppDbContext context, UserManager<AppUser> userManager, RoleManager<IdentityRole<int>> roleManager)
+    public static async Task SeedAsync(AppDbContext context, UserManager<AppUser> userManager, RoleManager<IdentityRole<int>> roleManager, IConfiguration configuration)
     {
-        using var transaction = await context.Database.BeginTransactionAsync();
-        transaction.GetDbTransaction();
         // Seed roles
         string[] roleNames = { "Admin", "Patient", "Doctor" };
 
@@ -39,7 +38,8 @@ public class DatabaseSeeder
                 PhoneNumber = "01022003571",
                 EmailConfirmed = true
             };
-            var result = await userManager.CreateAsync(adminUser, "Admin@123");
+            var adminPassword = configuration["Seed:Development:AdminPassword"]?? throw new InvalidOperationException() ;
+            var result = await userManager.CreateAsync(adminUser, adminPassword);
 
             if (result.Succeeded)
             {
@@ -60,14 +60,14 @@ public class DatabaseSeeder
                 EmailConfirmed = true
 
             };
-            var result = await userManager.CreateAsync(appUser, "Doctor@123");
+            var doctorPassword = configuration["Seed:Development:DoctorPassword"]?? throw new InvalidOperationException();
+            var result = await userManager.CreateAsync(appUser, doctorPassword);
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(appUser, "Doctor");
-                var userObject = userManager.FindByNameAsync("doctor");
                 var doctorUser = new Doctor
                 {
-                    UserId = userObject.Id,
+                    UserId = appUser.Id,
                     Gender = Gender.Male,
                     ProfessionalPracticeLicense= "Balz",
                     IssuingAuthority= "Egyptian Medical Syndicate"
@@ -90,14 +90,14 @@ public class DatabaseSeeder
                 EmailConfirmed = true
 
             };
-            var result = await userManager.CreateAsync(appUser, "Patient@123");
+            var patientPassword = configuration["Seed:Development:PatientPassword"]?? throw new InvalidOperationException();
+            var result = await userManager.CreateAsync(appUser, patientPassword);
             if (result.Succeeded)
             {
                 var RoleResult = await userManager.AddToRoleAsync(appUser, "Patient");
-                var userObject = userManager.FindByNameAsync("patient");
                     var patientUser = new Patient
                     {
-                        UserId = userObject.Id,
+                        UserId = appUser.Id,
                         DateOfBirth = DateOnly.FromDateTime(DateTime.Now),
                         BloodType = BloodType.B_Positive,
                         Gender = Gender.Male
@@ -110,6 +110,5 @@ public class DatabaseSeeder
             }
         }
         await context.SaveChangesAsync();
-        transaction.Commit();
     }
 }
