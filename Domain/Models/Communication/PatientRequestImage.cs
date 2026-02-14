@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Domain.Models.Communication;
 
-namespace Domain.Models.Communication
+public class PatientRequestImage : ParentEntity
 {
-    public class PatientRequestImage : ParentEntity
-    {
-        public string ImagePath { get; set; }
-        public int PatientRequestId { get; set; }
-    }
+    public string ImagePath { get; set; }
+    public int PatientRequestId { get; set; }
 }

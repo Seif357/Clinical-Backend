@@ -1,16 +1,14 @@
-﻿
-using Domain.Models.MedicalRecordAttributes;
+﻿using Domain.Models.MedicalRecordAttributes;
 
-namespace Domain.Models
+namespace Domain.Models;
+
+public class MedicalRecord : ParentEntity
 {
-    public class MedicalRecord : ParentEntity
-    {
-        public int PatientId { get; set; }
-        public ICollection<Visit> Visits { get; set; }
-        public ICollection<Surgery> Surgeries { get; set; }
-        public ICollection<TestTaken> TestsTaken { get; set; }
-        public ICollection<Allergy> Allergies { get; set; }
-        public ICollection<PrescribedMedication> PrescribedMedications { get; set; }
-        public ICollection<FamilyCondition> FamilyConditions { get; set; }
-    }
+    public int PatientId { get; set; }
+    public ICollection<Visit> Visits { get; set; }
+    public ICollection<Surgery> Surgeries { get; set; }
+    public ICollection<TestTaken> TestsTaken { get; set; }
+    public ICollection<Allergy> Allergies { get; set; }
+    public ICollection<PrescribedMedication> PrescribedMedications { get; set; }
+    public ICollection<FamilyCondition> FamilyConditions { get; set; }
 }

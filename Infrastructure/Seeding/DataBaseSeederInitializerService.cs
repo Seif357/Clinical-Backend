@@ -3,11 +3,10 @@ using Infrastructure.DataAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Infrastructure.Seeding;
 
-public class DataBaseSeederInitializerService()
+public class DataBaseSeederInitializerService
 {
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
     {

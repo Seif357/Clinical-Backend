@@ -1,4 +1,3 @@
-using Domain.Models;
 using Domain.Models.Auth;
 
 namespace Infrastructure.Repositories.Interfaces;
@@ -13,7 +12,4 @@ public interface IRefreshTokenRepository
     Task RevokeAllUserTokensAsync(int userId, string reason);
     Task RevokeAllDeviceTokensAsync(int userId, int deviceId, string reason);
     Task<bool> IsTokenValidAsync(string token);
-
-
 }
-

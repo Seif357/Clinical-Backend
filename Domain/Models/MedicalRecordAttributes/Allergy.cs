@@ -1,9 +1,8 @@
-﻿namespace Domain.Models.MedicalRecordAttributes
+﻿namespace Domain.Models.MedicalRecordAttributes;
+
+public class Allergy : ParentEntity
 {
-    public class Allergy: ParentEntity
-    {
-        public string Name { get; set; }
-        public string Severity { get; set; }
-        public string Reaction { get; set; }   
-    }
+    public string Name { get; set; }
+    public string Severity { get; set; }
+    public string Reaction { get; set; }
 }

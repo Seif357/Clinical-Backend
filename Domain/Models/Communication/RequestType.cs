@@ -1,11 +1,10 @@
-﻿namespace Domain.Models.Communication
+﻿namespace Domain.Models.Communication;
+
+public enum RequestType
 {
-    public enum RequestType
-    {
-        Prescription=1,
-        AppointmentRequest,
-        MedicalAdvice,
-        TestResultsInquiry,
-        GeneralQuestion
-    }
+    Prescription = 1,
+    AppointmentRequest,
+    MedicalAdvice,
+    TestResultsInquiry,
+    GeneralQuestion
 }

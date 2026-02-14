@@ -17,7 +17,7 @@ namespace Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -48,7 +48,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModelInputs", (string)null);
+                    b.ToTable("ModelInputs");
                 });
 
             modelBuilder.Entity("Domain.Models.AI.ModelOutput", b =>
@@ -77,7 +77,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModelOutputs", (string)null);
+                    b.ToTable("ModelOutputs");
                 });
 
             modelBuilder.Entity("Domain.Models.Auth.AppUser", b =>
@@ -131,9 +131,6 @@ namespace Infrastructure.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("RowVersion")
-                        .HasColumnType("decimal(20,0)");
-
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
@@ -162,15 +159,20 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Models.Auth.RefreshToken", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AppUserId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
@@ -197,7 +199,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorReqestImage", b =>
@@ -231,7 +233,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("DoctorRequestId");
 
-                    b.ToTable("DoctorReqestImages", (string)null);
+                    b.ToTable("DoctorReqestImages");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorRequest", b =>
@@ -275,7 +277,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DoctorRequests", (string)null);
+                    b.ToTable("DoctorRequests");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.DoctorResponse", b =>
@@ -314,7 +316,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DoctorResponses", (string)null);
+                    b.ToTable("DoctorResponses");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientRequest", b =>
@@ -359,7 +361,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PatientRequests", (string)null);
+                    b.ToTable("PatientRequests");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientRequestImage", b =>
@@ -393,7 +395,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PatientRequestId");
 
-                    b.ToTable("PatientRequestImages", (string)null);
+                    b.ToTable("PatientRequestImages");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientResponse", b =>
@@ -432,7 +434,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PatientResponses", (string)null);
+                    b.ToTable("PatientResponses");
                 });
 
             modelBuilder.Entity("Domain.Models.Communication.PatientResponseImage", b =>
@@ -466,7 +468,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PatientResponseId");
 
-                    b.ToTable("PatientResponseImages", (string)null);
+                    b.ToTable("PatientResponseImages");
                 });
 
             modelBuilder.Entity("Domain.Models.Doctor", b =>
@@ -496,7 +498,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Doctors", (string)null);
+                    b.ToTable("Doctors");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecord", b =>
@@ -527,7 +529,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("PatientId")
                         .IsUnique();
 
-                    b.ToTable("MedicalRecords", (string)null);
+                    b.ToTable("MedicalRecords");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
@@ -569,7 +571,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Allergies", (string)null);
+                    b.ToTable("Allergies");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
@@ -610,7 +612,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("FamilyConditions", (string)null);
+                    b.ToTable("FamilyConditions");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.PrescribedMedication", b =>
@@ -658,7 +660,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("PrescribedMedications", (string)null);
+                    b.ToTable("PrescribedMedications");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
@@ -699,7 +701,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Surgeries", (string)null);
+                    b.ToTable("Surgeries");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
@@ -740,7 +742,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("TestsTaken", (string)null);
+                    b.ToTable("TestsTaken");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
@@ -789,7 +791,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("Visits", (string)null);
+                    b.ToTable("Visits");
                 });
 
             modelBuilder.Entity("Domain.Models.Patient", b =>
@@ -811,7 +813,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("Domain.Models.Schedule.Schedule", b =>
@@ -839,7 +841,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Schedules", (string)null);
+                    b.ToTable("Schedules");
                 });
 
             modelBuilder.Entity("Domain.Models.Schedule.ScheduleSlot", b =>
@@ -878,7 +880,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ScheduleId");
 
-                    b.ToTable("ScheduleSlots", (string)null);
+                    b.ToTable("ScheduleSlots");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>

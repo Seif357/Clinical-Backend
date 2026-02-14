@@ -1,4 +1,3 @@
-using Domain.Models;
 using Domain.Models.Auth;
 using Infrastructure.DataAccess;
 using Infrastructure.Repositories.Interfaces;
@@ -22,6 +21,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(rt => rt.Token == token);
     }
+
     public async Task<RefreshToken?> GetByTokenAsync(string token)
     {
         return await _context.RefreshTokens
@@ -35,8 +35,8 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         return await _context.RefreshTokens
             .AsNoTracking()
             .Where(rt => rt.UserId == userId
-            && rt.RevokedAt == null 
-            && rt.ExpiresAt > now)
+                         && rt.RevokedAt == null
+                         && rt.ExpiresAt > now)
             .ToListAsync();
     }
 
@@ -69,17 +69,19 @@ public class RefreshTokenRepository : IRefreshTokenRepository
 
         await _context.SaveChangesAsync();
     }
+
     public async Task RevokeAllDeviceTokensAsync(int userId, int deviceId, string reason)
     {
         var now = DateTime.UtcNow;
         await _context.RefreshTokens
-                .Where(rt => rt.UserId == userId && rt.DeviceId == deviceId && rt.RevokedAt == null && rt.ExpiresAt > now)
-                .ExecuteUpdateAsync(s => s
+            .Where(rt => rt.UserId == userId && rt.DeviceId == deviceId && rt.RevokedAt == null && rt.ExpiresAt > now)
+            .ExecuteUpdateAsync(s => s
                 .SetProperty(rt => rt.RevokedAt, now)
                 .SetProperty(rt => rt.ReasonRevoked, reason));
 
         await _context.SaveChangesAsync();
     }
+
     public async Task<bool> IsTokenValidAsync(string token)
     {
         var now = DateTime.UtcNow;
@@ -88,10 +90,9 @@ public class RefreshTokenRepository : IRefreshTokenRepository
             .AsNoTracking()
             .Include(rt => rt.User)
             .AnyAsync(rt => rt.Token == token
-                && rt.RevokedAt == null
-                && rt.ExpiresAt > now 
-                && rt.User != null 
-                && rt.IsActive == true);
+                            && rt.RevokedAt == null
+                            && rt.ExpiresAt > now
+                            && rt.User != null
+                            && rt.IsActive == true);
     }
 }
-

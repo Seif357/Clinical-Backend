@@ -1,9 +1,8 @@
-﻿namespace Domain.Models.MedicalRecordAttributes
+﻿namespace Domain.Models.MedicalRecordAttributes;
+
+public class TestTaken : ParentEntity
 {
-    public class TestTaken: ParentEntity
-    {
-        public string Name { get; set; }
-        public DateTime Date { get; set; }
-        public string Result { get; set; }
-    }
+    public string Name { get; set; }
+    public DateTime Date { get; set; }
+    public string Result { get; set; }
 }
