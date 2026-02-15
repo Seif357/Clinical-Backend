@@ -13,9 +13,18 @@ public class Program
         builder.Services.AddInfrastructureAsync(builder.Configuration, builder.Environment);
         builder.Services.AddApplication(builder.Configuration);
         builder.Services.AddOpenApi();
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+            });
+        });
         var app = builder.Build();
         app.MapOpenApi();
-
+        app.UseCors();
         app.Map("/", () => Results.Redirect("/scalar/v1", true));
         app.UseHttpsRedirection();
         app.MapScalarApiReference(options =>
