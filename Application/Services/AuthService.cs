@@ -417,4 +417,27 @@ public class AuthService(
         claims.AddRange(userClaims);
         return claims;
     }
+
+    public async Task<Result> DeleteAccountService(string userId)
+    {
+        var result = new Result();
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            result.Message = "User not found";
+            return result;
+        }
+        user.IsDeleted = true;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            result.Success = false;
+            result.Message =
+                $"Failed to delete account! {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
+            return result;
+        }
+        result.Success = true;
+        result.Message = "Account deleted successfully";
+        return result;
+    }
 }

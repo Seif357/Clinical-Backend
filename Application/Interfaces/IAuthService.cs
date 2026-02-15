@@ -12,4 +12,5 @@ public interface IAuthService
     Task<AuthResult> RefreshTokenAsync(string refreshToken);
     Task<AuthResult> UpdatePasswordServiceAsync(string userId, UpdatePasswordDto updateUserDto);
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
+    Task<Result> DeleteAccountService(string userId);
 }

@@ -178,5 +178,31 @@ public class AuthController(IAuthService authService,
 
         Response.Cookies.Delete("refreshToken", cookieOptions);
     }
-    
+    [HttpDelete("delete")]
+    [Produces(typeof(Result))]
+    [Authorize]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var delResult = await authService.DeleteAccountService(userId);
+        if (!delResult.Success) return BadRequest(delResult);
+
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            try
+            {
+                await authService.RevokeTokenServiceAsync(refreshToken, "Account deleted");
+                DeleteRefreshTokenCookie();
+            }
+            catch (SecurityTokenException)
+            {
+                // Token already revoked or invalid — account is still deleted
+            }
+        }
+
+        return Ok(delResult);
+    }
 }
