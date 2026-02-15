@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using Application.Common.Interfaces;
 using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
@@ -410,8 +409,6 @@ public class AuthService(
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName!),
             new(ClaimTypes.Email, user.Email!)
         };
         var roles = await userManager.GetRolesAsync(user);
