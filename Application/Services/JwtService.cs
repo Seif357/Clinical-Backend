@@ -4,53 +4,45 @@ using System.Security.Cryptography;
 using System.Text;
 using Application.Interfaces;
 using Domain.Models.Auth;
+using Infrastructure.Configurations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Application.Services;
 
-public class JwtService : IJwtService
+public class JwtService(IConfiguration configuration, ILogger<JwtService> logger,IOptions<JwtSettings> jwtSettings) : IJwtService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<JwtService> _logger;
-
-    public JwtService(IConfiguration configuration, ILogger<JwtService> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
+    
     public string GenerateAccessToken(List<Claim> claims)
     {
-        _logger.LogDebug("Generating access token for user: {UserId}", claims.GetUserId());
+        logger.LogDebug("Generating access token for user: {UserId}", claims.GetUserId());
 
-        var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ??
+        var section = configuration.GetSection("JwtSettings");
+        var secretKey = section["SecretKey"] ??
                         throw new InvalidOperationException("JWT SecretKey is not configured");
-        var issuer = jwtSettings["Issuer"];
-        var audience = jwtSettings["Audience"];
-        var expirationMinutes = int.Parse(jwtSettings["ExpirationInMinutes"] ?? "60");
 
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
-            issuer,
-            audience,
+            jwtSettings.Value.Issuer,
+            jwtSettings.Value.Audience,
             claims,
-            expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
+            expires: DateTime.UtcNow.AddMinutes(jwtSettings.Value.ExpirationInMinutes),
             signingCredentials: credentials
         );
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-        _logger.LogDebug("Access token generated successfully for user: {UserId}, expires in {Minutes} minutes",
-            claims.GetUserId(), expirationMinutes);
+        logger.LogDebug("Access token generated successfully for user: {UserId}, expires in {Minutes} minutes",
+            claims.GetUserId(), jwtSettings.Value.ExpirationInMinutes);
 
         return tokenString;
     }
 
     public RefreshToken GenerateRefreshToken(int userId)
     {
-        _logger.LogDebug("Generating refresh token for user: {UserId}", userId);
+        logger.LogDebug("Generating refresh token for user: {UserId}", userId);
 
         var randomNumber = new byte[64];
         using var rng = RandomNumberGenerator.Create();
@@ -66,7 +58,7 @@ public class JwtService : IJwtService
             ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays)
         };
 
-        _logger.LogDebug("Refresh token generated for user: {UserId}, expires in {Days} days",
+        logger.LogDebug("Refresh token generated for user: {UserId}, expires in {Days} days",
             userId, refreshTokenExpirationDays);
 
         return refreshToken;
@@ -74,11 +66,11 @@ public class JwtService : IJwtService
 
     public int GetRefreshTokenExpirationDays()
     {
-        return int.Parse(_configuration.GetSection("JwtSettings")["RefreshTokenExpirationInDays"] ?? "7");
+        return int.Parse(configuration.GetSection("JwtSettings")["RefreshTokenExpirationInDays"] ?? "7");
     }
 
     public int GetTokenExpirationMinutes()
     {
-        return int.Parse(_configuration.GetSection("JwtSettings")["ExpirationInMinutes"] ?? "60");
+        return int.Parse(configuration.GetSection("JwtSettings")["ExpirationInMinutes"] ?? "60");
     }
 }
