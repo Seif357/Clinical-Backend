@@ -1,4 +1,5 @@
 using Application.Dto.AI;
+using Application.DTOs;
 using Application.Interfaces;
 using Domain.Models.AI;
 using Infrastructure.DataAccess;
@@ -24,7 +25,7 @@ public class ImageProcessingService : IImageProcessingService
         _logger = logger;
     }
 
-    public async Task<ImageUploadResponseDto> UploadImageAsync(UploadImageDto dto)
+    public async Task<Result> UploadImageAsync(UploadImageDto dto)
     {
         try
         {
@@ -42,29 +43,27 @@ public class ImageProcessingService : IImageProcessingService
                 FileSizeBytes = dto.Image.Length,
                 PatientId = dto.PatientId,
                 Notes = dto.Notes,
-                UploadedAt = DateTime.UtcNow,
                 Status = "Uploaded"
             };
-
-            _context.Set<ModelInput>().Add(modelInput);
+            await _context.Set<ModelInput>().AddAsync(modelInput);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Image uploaded successfully with ID {Id}", modelInput.Id);
 
-            return new ImageUploadResponseDto
+            return new Result
             {
-                Id = modelInput.Id,
-                FilePath = filePath,
-                FileName = modelInput.OriginalFileName,
-                FileSizeBytes = modelInput.FileSizeBytes,
-                UploadedAt = modelInput.UploadedAt,
-                Status = modelInput.Status
+                Success = true,
+                Message = "Image uploaded successfully"
             };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading image for patient {PatientId}", dto.PatientId);
-            throw;
+            return new Result
+            {
+                Success = false,
+                Message = "Failed to upload image"
+            };
         }
     }
 
