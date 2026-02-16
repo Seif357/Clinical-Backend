@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /API/appsettings.json
 /API/appsettings.json
+/API/wwwroot/uploads/histopathology
