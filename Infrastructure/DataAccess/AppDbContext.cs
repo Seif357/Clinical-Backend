@@ -50,5 +50,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             .WithMany()
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        
+        // Configure ModelInput and ModelOutput relationship
+        builder.Entity<ModelOutput>()
+            .HasOne(mo => mo.Input)
+            .WithOne(mi => mi.Output)
+            .HasForeignKey<ModelOutput>(mo => mo.ModelInputId)
+            .OnDelete(DeleteBehavior.Cascade);
+        
+        // Add indexes for better query performance
+        builder.Entity<ModelInput>()
+            .HasIndex(mi => mi.PatientId);
+        
+        builder.Entity<ModelInput>()
+            .HasIndex(mi => mi.UploadedAt);
     }
 }

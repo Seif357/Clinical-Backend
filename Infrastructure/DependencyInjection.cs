@@ -5,6 +5,7 @@ using Infrastructure.DataAccess;
 using Infrastructure.Repositories;
 using Infrastructure.Repositories.Interfaces;
 using Infrastructure.Seeding;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IFileStorageService, FileStorageService>();
 
         services.AddIdentity<AppUser, IdentityRole<int>>(options =>
             {
