@@ -1,3 +1,4 @@
+using API.Middleware;
 using Application;
 using Scalar.AspNetCore;
 using Serilog;
@@ -58,7 +59,7 @@ public class Program
             });
             
             var app = builder.Build();
-            
+            app.UseMiddleware<AutoRefreshMiddleware>();  // 👈 add this
             // Add Serilog request logging middleware
             app.UseSerilogRequestLogging(options =>
             {

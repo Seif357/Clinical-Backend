@@ -50,7 +50,7 @@ public class AIController : ControllerBase
 
             var result = await _imageProcessingService.UploadImageAsync(dto);
             
-            _logger.LogInformation("Image uploaded successfully with ID {ImageId}", result.Id);
+            _logger.LogInformation("Image uploaded successfully with ID {ImageId}");
             return Ok(result);
         }
         catch (Exception ex)

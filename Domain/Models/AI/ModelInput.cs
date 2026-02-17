@@ -7,7 +7,7 @@ public class ModelInput : ParentEntity
     public long FileSizeBytes { get; set; }
     public int? PatientId { get; set; }
     public string? Notes { get; set; }
-    public DateTime UploadedAt => DateTime.Now;
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow; 
     public string Status { get; set; } = "Uploaded";
     
     public ModelOutput? Output { get; set; }
