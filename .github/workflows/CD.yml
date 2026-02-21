@@ -29,7 +29,6 @@ jobs:
   deploy:
     name: Publish and Deploy
     needs: test
-    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: production
     steps:
