@@ -1,8 +1,8 @@
 name: Build, Test and Deploy to MonsterASP.NET
 on:
-  push: 
+  push:
   workflow_dispatch: 
-  
+
 jobs:
   test:
     name: Build and Test
@@ -16,9 +16,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
           cache: true  
-      - name: Restore Dependencies
-        run: dotnet restore --use-lock-file
-
+          cache-dependency-path: '**/*.csproj'
+          
       - name: Restore Dependencies
         run: dotnet restore
 
@@ -43,8 +42,10 @@ jobs:
         with:
           dotnet-version: 10.0.x
           cache: true
+          cache-dependency-path: '**/*.csproj' # Added for consistency
 
       - name: Publish Application
+        # Removed redundant restore step as publish handles restore by default (utilizing the cache)
         run: dotnet publish --configuration Release --output ./publish --runtime win-x86 --self-contained true
 
       - name: Deploy to MonsterASP.NET via WebDeploy
@@ -54,4 +55,4 @@ jobs:
           server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.SERVER_USERNAME }}
           server-password: ${{ secrets.SERVER_PASSWORD }}
-          source-path: ./publish 
+          source-path: ./publish
