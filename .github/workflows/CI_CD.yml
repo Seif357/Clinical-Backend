@@ -15,7 +15,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-          cache: true  # OPTIMIZATION: Speeds up builds by caching NuGet packages
+          cache: true  
+      - name: Restore Dependencies
+        run: dotnet restore --use-lock-file
 
       - name: Restore Dependencies
         run: dotnet restore
