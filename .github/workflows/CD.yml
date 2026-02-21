@@ -30,7 +30,7 @@ jobs:
     name: Publish and Deploy
     needs: test
     runs-on: windows-latest
-    environment: production
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: '**/*.csproj'
 
       - name: Publish Application
-        run: dotnet publish ./API/API.csproj --configuration Release --output ./publish --runtime win-x86 --self-contained true
+        run: dotnet publish ./API/API.csproj --configuration Release --output ./publish --runtime win-x86 --self-contained false
 
       - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
