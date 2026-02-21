@@ -11,7 +11,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0
-          
+      - name: Debug Secrets
+        run: |
+          echo "WEBSITE_NAME: ${{ secrets.WEBSITE_NAME }}"
+          echo "SERVER_COMPUTER_NAME: ${{ secrets.SERVER_COMPUTER_NAME }}"
+          echo "SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}"
       - name: Install dependencies
         run: dotnet restore
         
