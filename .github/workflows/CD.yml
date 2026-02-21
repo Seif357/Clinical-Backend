@@ -1,48 +1,33 @@
-name: Deploy
-on:
-  push:
+name: Build, publish and deploy to MonsterASP.NET
+on: [push]
 
 jobs:
-  build_test_and_deploy:
+  build_and_deploy:
     runs-on: windows-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Setup .NET 10
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: 8.0
           
-      - name: Cache NuGet packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-          
-      - name: Restore dependencies
+      - name: Install dependencies
         run: dotnet restore
         
-      - name: Build application
+      - name: Build
         run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release --output ./publish --runtime win-x86 
         
-      - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
-        
-      - name: Publish application
-        run: dotnet publish --configuration Release --output ./publish --runtime win-x86 --self-contained false
-        
-      - name: Deploy to MonsterASP.NET
+      - name: Test with .NET
+        run: dotnet test
+
+      - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
           website-name: ${{ secrets.WEBSITE_NAME }}
           server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.SERVER_USERNAME }}
-          server-password: ${{ secrets.SERVER_PASSWORD }}          
-      - name: Verify deployment
-        run: |
-          echo "Deployment completed successfully!"
-          echo "Application should be available at: https://clinical.runasp.net/scalar/v1"
+          server-password: ${{ secrets.SERVER_PASSWORD }}
