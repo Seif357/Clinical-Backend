@@ -33,7 +33,7 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
-    environment: production
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,9 +46,8 @@ jobs:
           cache-dependency-path: '**/*.csproj' # Added for consistency
 
       - name: Publish Application
-        # Removed redundant restore step as publish handles restore by default (utilizing the cache)
-        run: dotnet publish --configuration Release --output ./publish --runtime win-x86 --self-contained true
-
+        run: dotnet publish --configuration Release --output "${{ github.workspace }}/publish" --runtime win-x86 --self-contained true
+     
       - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
@@ -56,4 +55,4 @@ jobs:
           server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.SERVER_USERNAME }}
           server-password: ${{ secrets.SERVER_PASSWORD }}
-          source-path: ./publish
+          source-path: "${{ github.workspace }}/publish"
