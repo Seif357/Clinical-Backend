@@ -67,23 +67,15 @@ public class AIController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetImageById(int id)
     {
-        try
-        {
-            var image = await _imageProcessingService.GetImageByIdAsync(id);
-            
-            if (image == null)
-            {
-                _logger.LogWarning("Image with ID {ImageId} not found", id);
-                return NotFound(new { Message = $"Image with ID {id} not found" });
-            }
+        var image = await _imageProcessingService.GetImageByIdAsync(id);
 
-            return Ok(image);
-        }
-        catch (Exception ex)
+        if (image == null)
         {
-            _logger.LogError(ex, "Error retrieving image with ID {ImageId}", id);
-            return StatusCode(500, new { Message = "An error occurred while retrieving the image" });
+            _logger.LogWarning("Image with ID {ImageId} not found", id);
+            return NotFound(new { Message = $"Image with ID {id} not found" });
         }
+
+        return Ok(image);
     }
 
     /// Get all images for a specific patient
@@ -91,16 +83,8 @@ public class AIController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetImagesByPatientId(int patientId)
     {
-        try
-        {
-            var images = await _imageProcessingService.GetImagesByPatientIdAsync(patientId);
-            return Ok(images);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving images for patient {PatientId}", patientId);
-            return StatusCode(500, new { Message = "An error occurred while retrieving images" });
-        }
+        var images = await _imageProcessingService.GetImagesByPatientIdAsync(patientId);
+        return Ok(images);
     }
 
     
