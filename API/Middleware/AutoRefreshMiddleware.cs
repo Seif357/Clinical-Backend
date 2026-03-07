@@ -1,7 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+using API.Helpers;
 using Application.Interfaces;
-using Microsoft.IdentityModel.Tokens;
+using Domain.Models.Auth;
 
 namespace API.Middleware;
 
@@ -12,8 +11,7 @@ namespace API.Middleware;
 /// </summary>
 public class AutoRefreshMiddleware(RequestDelegate next, ILogger<AutoRefreshMiddleware> logger)
 {
-    // These paths should never trigger auto-refresh (they handle tokens themselves)
-    private static readonly HashSet<string> _excludedPaths =
+    private static readonly HashSet<string> ExcludedPaths =
     [
         "/api/auth/login",
         "/api/auth/register",
@@ -21,10 +19,10 @@ public class AutoRefreshMiddleware(RequestDelegate next, ILogger<AutoRefreshMidd
         "/api/auth/logout"
     ];
 
-    public async Task InvokeAsync(HttpContext context, IAuthService authService, IJwtService jwtService)
+    public async Task InvokeAsync(HttpContext context, IAuthService authService, IJwtService jwtService,
+        IWebHostEnvironment environment)
     {
-        // Skip excluded paths
-        if (_excludedPaths.Contains(context.Request.Path.Value?.ToLower() ?? string.Empty))
+        if (ExcludedPaths.Contains(context.Request.Path.Value?.ToLower() ?? string.Empty))
         {
             await next(context);
             return;
@@ -41,94 +39,50 @@ public class AutoRefreshMiddleware(RequestDelegate next, ILogger<AutoRefreshMidd
 
         var accessToken = authHeader["Bearer ".Length..].Trim();
 
-        // Only intercept if the token is actually expired (not missing/malformed)
-        if (!IsTokenExpired(accessToken, jwtService))
+        var validationStatus = await jwtService.IsTokenExpiredAsync(accessToken);
+        if (validationStatus != TokenValidationStatus.Expired)
         {
             await next(context);
             return;
         }
 
-        // Try to get the refresh token from cookie
         var refreshToken = context.Request.Cookies["refreshToken"];
         if (string.IsNullOrEmpty(refreshToken))
         {
-            // No refresh token available — let the request fail normally (401)
             await next(context);
             return;
         }
 
-        logger.LogInformation("Access token expired for request {Path} — attempting silent refresh.", context.Request.Path);
+        logger.LogInformation("Access token expired for request {Path} — attempting silent refresh.",
+            context.Request.Path);
 
-        try
+        var refreshResult = await authService.RefreshTokenAsync(refreshToken);
+
+        if (!refreshResult.Success)
         {
-            var refreshResult = await authService.RefreshTokenAsync(refreshToken);
-
-            if (!refreshResult.Success)
-            {
-                logger.LogWarning("Silent token refresh failed: {Message}", refreshResult.Message);
-                await next(context);
-                return;
-            }
-
-            // ✅ Inject new tokens back
-            // New refresh token → cookie (same as your /refresh-token endpoint does)
-            context.Response.Cookies.Append("refreshToken", refreshResult.RefreshToken!, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = !IsDevEnvironment(context),
-                SameSite = SameSiteMode.Lax,
-                Expires = refreshResult.RefreshTokenExpiration,
-                Path = "/",
-                IsEssential = true
-            });
-
-            // New access token → response header (frontend reads this and saves it)
-            context.Response.Headers["X-New-Access-Token"] = refreshResult.AccessToken;
-            context.Response.Headers["X-New-Access-Token-Expiration"] =
-                refreshResult.AccessTokenExpiration.ToString(); // ISO 8601
-
-            // Expose the header to browsers (required for CORS clients to read it)
-            context.Response.Headers.Append("Access-Control-Expose-Headers", "X-New-Access-Token, X-New-Access-Token-Expiration");
-
-            // Re-inject the new access token into the current request so the
-            // rest of the pipeline authenticates successfully
-            context.Request.Headers.Authorization = $"Bearer {refreshResult.AccessToken}";
-
-            logger.LogInformation("Silent token refresh succeeded for request {Path}.", context.Request.Path);
+            logger.LogInformation("Silent refresh failed for {Path}: {Message}",
+                context.Request.Path, refreshResult.Message);
+            await next(context);
+            return;
         }
-        catch (SecurityTokenException ex)
-        {
-            logger.LogWarning("Silent token refresh threw SecurityTokenException: {Message}", ex.Message);
-            // Fall through — let the pipeline return 401 naturally
-        }
+
+        AuthHelper.SetRefreshTokenCookie(
+            context.Response,
+            refreshResult.RefreshToken,
+            refreshResult.RefreshTokenExpiration,
+            environment,
+            jwtService.GetRefreshTokenExpirationDays());
+
+        context.Response.Headers["X-New-Access-Token"] = refreshResult.AccessToken;
+        context.Response.Headers["X-New-Access-Token-Expiration"] =
+            refreshResult.AccessTokenExpiration?.ToString("O"); // ISO 8601
+
+        context.Response.Headers.Append("Access-Control-Expose-Headers",
+            "X-New-Access-Token, X-New-Access-Token-Expiration");
+
+        context.Request.Headers.Authorization = $"Bearer {refreshResult.AccessToken}";
+        logger.LogInformation("Silent token refresh succeeded for request {Path}.", context.Request.Path);
 
         await next(context);
     }
-
-    /// <summary>
-    /// Returns true only if the token is structurally valid but past its expiry.
-    /// Malformed tokens return false so the pipeline handles them normally.
-    /// </summary>
-    private static bool IsTokenExpired(string token, IJwtService jwtService)
-    {
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            if (!handler.CanReadToken(token)) return false;
-
-            var jwt = handler.ReadJwtToken(token);
-
-            // exp claim is in Unix seconds
-            return jwt.ValidTo < DateTime.UtcNow;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsDevEnvironment(HttpContext context) =>
-        context.RequestServices
-            .GetRequiredService<IWebHostEnvironment>()
-            .IsDevelopment();
 }
