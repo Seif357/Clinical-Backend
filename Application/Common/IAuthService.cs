@@ -1,7 +1,8 @@
-﻿using Application.Dto.AuthDto;
+﻿using Application.Dto;
+using Application.Dto.AuthDto;
 using Application.DTOs;
 
-namespace Application.Interfaces;
+namespace Application.Common.Interfaces;
 
 public interface IAuthService
 {
@@ -10,7 +11,9 @@ public interface IAuthService
     Task<AuthResult> UpdateEmailServiceAsync(string userId, UpdateEmailDto updateEmailDto);
     Task<AuthResult> UpdateUsernameServiceAsync(string userId, UpdateUsernameDto updateUsernameDto);
     Task<AuthResult> RefreshTokenAsync(string refreshToken);
-    Task<AuthResult> UpdatePasswordServiceAsync(string userId, UpdatePasswordDto updateUserDto);
+    Task<AuthResult> UpdatePasswordServiceAsync(string userId,UpdatePasswordDto updateUserDto);
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
-    Task<Result> DeleteAccountService(string userId,string password);
+
+
+
 }

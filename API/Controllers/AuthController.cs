@@ -1,11 +1,11 @@
 ﻿using System.Security.Claims;
+using API.Helpers;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.Interfaces;
 using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace API.Controllers;
 
@@ -16,8 +16,9 @@ public class AuthController(IAuthService authService,
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost("register")]
-    [Produces(typeof(Result))]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
     {
         var result = await authService.RegisterServiceAsync(registerDto);
@@ -29,10 +30,11 @@ public class AuthController(IAuthService authService,
     /// Login with UserName or Email and password
     /// </summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(AuthResult), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login(LoginDto dto)
+    public async Task<IActionResult> Login([FromBody]LoginDto dto)
     {
         var result = await authService.LoginServiceAsync(dto);
         if (!result.Success)
@@ -41,18 +43,20 @@ public class AuthController(IAuthService authService,
                 ? Unauthorized(result) 
                 : BadRequest(result);
         }
-        if (!string.IsNullOrEmpty(result.RefreshToken))
-        {
-            SetRefreshTokenCookie(result.RefreshToken);
-        }
-        result.RefreshToken = HttpContext.Request.Headers["X-Client-Type"].ToString().Equals("server", StringComparison.OrdinalIgnoreCase) ? result.RefreshToken : null;
+        AuthHelper.SetRefreshTokenCookie(Response, result.RefreshToken, result.RefreshTokenExpiration, environment, jwtService.GetRefreshTokenExpirationDays());
+        result.RefreshToken = HttpContext.Request.Headers["X-Client-Type"].ToString()
+            .Equals("server", StringComparison.OrdinalIgnoreCase)
+            ? result.RefreshToken
+            : null;
         return Ok(result);
     }
 
     [HttpPut("updateMail")]
-    [Produces(typeof(IActionResult))]
     [Authorize]
-    public async Task<IActionResult> UpdateEmail(UpdateEmailDto dto)
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateEmail([FromBody] UpdateEmailDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
@@ -62,87 +66,61 @@ public class AuthController(IAuthService authService,
     }
 
     [HttpPut("updateUsername")]
-    [Produces(typeof(IActionResult))]
     [Authorize]
-    public async Task<IActionResult> UpdateUsername(UpdateUsernameDto dto)
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateUsername([FromBody] UpdateUsernameDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        //var refreshToken = Request.Cookies["refreshToken"];
-        //    var refreshResult = await _auth.RefreshTokenAsync(refreshToken);
-        //    if (!refreshResult.Success)
-        //    {
-        //    }
-        //userId = refreshResult.AccessToken.     
         var result = await authService.UpdateUsernameServiceAsync(userId, dto);
         if (!result.Success) return BadRequest(result);
         return Ok(result);
     }
 
     [HttpPost("refresh-token")]
-    [Produces(typeof(IActionResult))]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RefreshToken()
     {
-        try
-        {
             var refreshToken = Request.Cookies["refreshToken"];
             var result = await authService.RefreshTokenAsync(refreshToken);
             if (!result.Success) return BadRequest(result);
-            Response.Cookies
-                .Append("refreshToken", result.RefreshToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = result.RefreshTokenExpiration,
-                    IsEssential = true
-                });
+            AuthHelper.SetRefreshTokenCookie(Response, result.RefreshToken, result.RefreshTokenExpiration, environment, jwtService.GetRefreshTokenExpirationDays());
             result.RefreshToken = null;
             return Ok(result);
-        }
-        catch (SecurityTokenException e)
-        {
-            return Unauthorized(new { e.Message });
-        }
-        //TODO: Handle other exceptions that are already handled in the service layer
-        //    catch (Exception e)
-        //    {
-        //        return StatusCode(500, new { Message = $"error occured during Refresh token" });
-        //    }
     }
 
     [HttpPost("logout")]
-    [Produces(typeof(IActionResult))]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     //todo: add logging out from one device only
     public async Task<IActionResult> RevokeToken()
     {
-        try
-        {
             var refreshToken = Request.Cookies["refreshToken"];
             var success = await authService.RevokeTokenServiceAsync(refreshToken, "Logged out");
             if (success)
             {
-                DeleteRefreshTokenCookie();
+                AuthHelper.DeleteRefreshTokenCookie(Response, environment);
                 return Ok();
             }
-
-            return BadRequest();
-        }
-        catch (SecurityTokenException e)
-        {
-            return Unauthorized(new { e.Message });
-        }
-        //TODO: Handle other exceptions that are already handled in the service layer
-        //catch (Exception e)
-        //{
-        //    return StatusCode(500, new { Message = "error occured during Revoke token" });
-        //}
+            else
+            {
+                return BadRequest();
+            }
     }
 
     [HttpPut("updatePassword")]
-    [Produces(typeof(IActionResult))]
-    public async Task<IActionResult> UpdatePassword(int id, UpdatePasswordDto dto)
+    [Authorize]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdatePassword([FromBody]UpdatePasswordDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
@@ -150,59 +128,21 @@ public class AuthController(IAuthService authService,
         if (!result.Success) return BadRequest(result);
         return Ok(result);
     }
-
-    private void SetRefreshTokenCookie(string refreshToken)
-    {
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !environment.IsDevelopment(), 
-            SameSite = SameSiteMode.Lax, // Lax allows the cookie to be sent on navigation
-            Expires = DateTime.UtcNow.AddDays(jwtService.GetRefreshTokenExpirationDays()),
-            Path = "/", 
-            IsEssential = true
-        };
-
-        Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-    }
-    private void DeleteRefreshTokenCookie()
-    {
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !environment.IsDevelopment(),
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTime.UtcNow.AddDays(-1),
-            Path = "/" 
-        };
-
-        Response.Cookies.Delete("refreshToken", cookieOptions);
-    }
+    
     [HttpDelete("delete")]
-    [Produces(typeof(Result))]
     [Authorize]
-    public async Task<IActionResult> DeleteAccount()
+    [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeleteAccount([FromBody]DeleteAccountDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var delResult = await authService.DeleteAccountService(userId);
-        if (!delResult.Success) return BadRequest(delResult);
+        var result = await authService.DeleteAccountService(userId, dto.Password);
+        if (!result.Success) return BadRequest(result);
 
-        var refreshToken = Request.Cookies["refreshToken"];
-        if (!string.IsNullOrEmpty(refreshToken))
-        {
-            try
-            {
-                await authService.RevokeTokenServiceAsync(refreshToken, "Account deleted");
-                DeleteRefreshTokenCookie();
-            }
-            catch (SecurityTokenException)
-            {
-                // Token already revoked or invalid — account is still deleted
-            }
-        }
-
-        return Ok(delResult);
+        AuthHelper.DeleteRefreshTokenCookie(Response, environment);
+        return Ok(result);
     }
 }
