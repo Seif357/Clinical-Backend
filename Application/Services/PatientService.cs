@@ -48,7 +48,6 @@ public class PatientService(AppDbContext context,
         if (patient is null)
             return new Result { Success = false, Message = "Patient not found" };
 
-        // Update AppUser fields via UserManager
         var user = patient.PatientData;
         var userChanged = false;
 
@@ -81,7 +80,6 @@ public class PatientService(AppDbContext context,
                 };
         }
 
-        // Update Patient-specific fields directly via EF
         if (dto.ImagePath is not null)
             patient.ImagePath = dto.ImagePath;
 

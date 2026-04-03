@@ -59,7 +59,7 @@ public class Program
             });
             
             var app = builder.Build();
-            app.UseMiddleware<AutoRefreshMiddleware>();  // 👈 add this
+            app.UseMiddleware<AutoRefreshMiddleware>();
             // Add Serilog request logging middleware
             app.UseSerilogRequestLogging(options =>
             {
