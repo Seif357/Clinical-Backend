@@ -1,4 +1,4 @@
-﻿using Application.Dto.AuthDto;
+using Application.Dto.AuthDto;
 using Application.DTOs;
 
 namespace Application.Interfaces;
@@ -13,4 +13,5 @@ public interface IAuthService
     Task<AuthResult> UpdatePasswordServiceAsync(string userId, UpdatePasswordDto updateUserDto);
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
     Task<Result> DeleteAccountService(string userId);
+    Task<AuthResult> GoogleLoginServiceAsync(GoogleLoginDto dto);
 }
