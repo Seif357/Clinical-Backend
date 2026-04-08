@@ -30,382 +30,351 @@ public class AuthService(
 {
     public async Task<Result> RegisterServiceAsync(RegisterDto registerDto)
     {
-        var result = await CheckExistence(registerDto.Username, registerDto.Email, registerDto.PhoneNumber);
+        var result = await CheckExistence(registerDto.Username, registerDto.Email);
         if (!result.Success) return result;
         if (registerDto.Password != registerDto.ConfirmPassword)
         {
-            result.Success = false;
-            result.Message = "Password doesn't match";
-            return result;
+            return new Result
+            {
+                Success = false,
+                Message = "Passwords don't match"
+            };
         }
 
         var newUser = registerDto.ToEntity();
-        using var transaction = await context.Database.BeginTransactionAsync();
-        transaction.GetDbTransaction();
-        try
-        {
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        
             var creationResult = await userManager.CreateAsync(newUser, registerDto.Password);
             if (!creationResult.Succeeded)
             {
-                transaction.Rollback();
-                result.Success = false;
-                result.Message =
-                    $"Failed to create new user! {string.Join(", ", creationResult.Errors.Select(e => e.Description))}";
-                return result;
+                await transaction.RollbackAsync();
+                return new Result
+                {
+                    Success = false,
+                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                };
             }
 
             string role;
-            if (registerDto.IsDoctor == false)
-            {
-                role = "Patient";
-                var patient = new Patient
-                {
-                    UserId = newUser.Id
-                };
-                var PatientResult = await context.Patients.AddAsync(patient);
-            }
-            else
+            if (registerDto.IsDoctor)
             {
                 if (string.IsNullOrWhiteSpace(registerDto.ProfessionalPracticeLicense) ||
                     string.IsNullOrWhiteSpace(registerDto.IssuingAuthority))
                 {
-                    result.Success = false;
-                    result.Message =
-                        "Professional Practice License and Issuing Authority are required for doctor registeration";
-                    return result;
+                    await transaction.RollbackAsync();
+                    return new Result
+                    {
+                        Success = false,
+                        Message = "Professional Practice License and Issuing Authority are required for doctor registration"
+                    };
                 }
 
                 role = "Doctor";
-                var doctor = new Doctor
+                await context.Doctors.AddAsync(new Doctor
                 {
                     UserId = newUser.Id,
                     ProfessionalPracticeLicense = registerDto.ProfessionalPracticeLicense,
                     IssuingAuthority = registerDto.IssuingAuthority
-                };
-                var DoctorResult = await context.Doctors.AddAsync(doctor);
+                });
             }
-
-            await context.SaveChangesAsync();
-            transaction.Commit();
-
-            if (!(await userManager.AddToRoleAsync(newUser, role)).Succeeded)
+            else
             {
-                transaction.Rollback();
-                result.Success = false;
-                result.Message = "Failed to assign role to new user!";
-                return result;
+                role = "Patient";
+                await context.Patients.AddAsync(new Patient
+                {
+                    UserId = newUser.Id
+                });
             }
+            
+            var roleResult = await userManager.AddToRoleAsync(newUser, role);
+            if (roleResult.Succeeded)
+            {
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                
+                return new Result
+                {
+                    Success = true, 
+                    Message = AuthConstants.Messages.UserRegisteredSuccessfully
+                };
+            }
+            else
+            {
+                await transaction.RollbackAsync();
+                return new Result
+                {
+                    Success = false, 
+                    Message = "Failed to assign role to new user"
+                };
 
-            result.Message = AuthConstants.Messages.UserRegisteredSuccessfully;
-            return result;
-        }
-        catch (Exception ex)
-        {
-            transaction.Rollback();
-            result.Success = false;
-            result.Message = ex.Message;
-            result.Data = ex.Data;
-            return result;
-        }
+            }
     }
 
     public async Task<AuthResult> LoginServiceAsync(LoginDto loginDto)
     {
-        try
-        {
-            AppUser? user;
-            var result = new AuthResult();
-            if (loginDto.UsernameOrEmail.Contains('@'))
-                user = await userManager.FindByEmailAsync(loginDto.UsernameOrEmail);
-            else
-                user = await userManager.FindByNameAsync(loginDto.UsernameOrEmail);
+        AppUser? user = loginDto.UsernameOrEmail.Contains('@')
+            ? await userManager.FindByEmailAsync(loginDto.UsernameOrEmail)
+            : await userManager.FindByNameAsync(loginDto.UsernameOrEmail);
 
-            if (user == null || !await userManager.CheckPasswordAsync(user, loginDto.Password))
+            if (user == null || !await userManager.CheckPasswordAsync(user, loginDto.Password)||user.IsDeleted)
             {
-                result.Message = AuthConstants.Messages.InvalidCredentials;
-                return result;
-            }
-
-            if (user.IsDeleted)
-            {
-                result.Success = false;
-                result.Message = "User is deleted";
-                return result;
+                return new AuthResult
+                {
+                    Success = false, 
+                    Message = AuthConstants.Messages.InvalidCredentials
+                };
             }
 
 
             var claims = await GenerateUserClaimsAsync(user);
             var accessToken = jwtTokenService.GenerateAccessToken(claims);
             var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
-            result.Success = true;
-            result.AccessToken = accessToken;
-            result.AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes());
-            result.RefreshToken = refreshToken.Token;
-            result.RefreshTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetRefreshTokenExpirationDays());
-            return result;
-        }
-        catch (ApplicationException ex)
-        {
+
+            await refreshTokenRepository.AddAsync(refreshToken);
+            await context.SaveChangesAsync();
+            
             return new AuthResult
             {
-                Message = ex.Message
+                Success = true,
+                AccessToken = accessToken,
+                AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
+                RefreshToken = refreshToken.Token,
+                RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
             };
-        }
-        catch (SecurityTokenException ex)
-        {
-            return new AuthResult
-            {
-                Message = ex.Message
-            };
-        }
     }
 
     public async Task<AuthResult> UpdateEmailServiceAsync(string userId, UpdateEmailDto updateEmail)
     {
-        try
-        {
-            var result = new AuthResult();
+        
             var user = await userManager.FindByIdAsync(userId);
+            if (user is null || user.IsDeleted)
+            {  return new AuthResult
+                {
+                    Success = false, 
+                    Message = "User not found"
+                };
+            }
             if (user.Email == updateEmail.NewEmail)
-            {
-                result.Success = false;
-                result.Message = "The Email you entered has not changed";
-                return result;
+            {   return new AuthResult
+                {
+                    Success = false, 
+                    Message = "The email you entered has not changed"
+                };
             }
 
-            if (user.IsDeleted)
-            {
-                result.Success = false;
-                result.Message = "User is deleted";
-                return result;
-            }
 
             user.Email = updateEmail.NewEmail;
             var updateResult = await userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
+            if (updateResult.Succeeded)
             {
-                result.Success = false;
-                result.Message =
-                    $"Failed to update email! {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
-                return result;
-            }
+                return new AuthResult { Success = true };
 
-            result.Success = true;
-            return result;
-        }
-        catch (ApplicationException ex)
-        {
-            return new AuthResult
+            }
+            else
             {
-                Message = ex.Message
-            };
-        }
-        catch (SecurityTokenException ex)
-        {
-            return new AuthResult
-            {
-                Message = ex.Message
-            };
-        }
+                return new AuthResult
+                {
+                    Success = false,
+                    Message = $"Failed to update email: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
+                };
+            }
     }
 
     public async Task<AuthResult> UpdateUsernameServiceAsync(string userId, UpdateUsernameDto updateUsernameDto)
     {
-        try
-        {
-            var result = new AuthResult();
             var user = await userManager.FindByIdAsync(userId);
+            if (user is null || user.IsDeleted)
+            {
+                return new AuthResult
+                {
+                    Success = false, 
+                    Message = "User not found"
+                };
+            }
+
             if (user.UserName == updateUsernameDto.NewUserName)
             {
-                result.Success = false;
-                result.Message = "The Username you entered has not changed";
-                return result;
+                return new AuthResult
+                {
+                    Success = false, 
+                    Message = "The username you entered has not changed"
+                };
             }
-
-            if (user.IsDeleted)
-            {
-                result.Success = false;
-                result.Message = "User is deleted";
-                return result;
-            }
-
+            
             user.UserName = updateUsernameDto.NewUserName;
             var updateResult = await userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
+            if (updateResult.Succeeded)
             {
-                result.Success = false;
-                result.Message =
-                    $"Failed to update username! {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
-                return result;
+                return new AuthResult
+                {
+                    Success = true
+                };
             }
+            else
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Message = $"Failed to update username: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
+                };
+            }
+    }
 
-            result.Success = true;
-            return result;
-        }
-        catch (ApplicationException ex)
+    /// <summary>
+    /// Verifies the user's password and returns the AppUser on success via Result.Data,
+    /// avoiding a redundant FindByIdAsync call in the caller.
+    /// </summary>
+    private async Task<Result> VerifyPasswordAsync(string userId, string password)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+
+        if (user == null || !await userManager.CheckPasswordAsync(user, password) || user.IsDeleted)
         {
-            return new AuthResult
+            return new Result
             {
-                Message = ex.Message
+                Success = false,
+                Message = AuthConstants.Messages.InvalidCredentials,
             };
         }
-        catch (SecurityTokenException ex)
-        {
-            return new AuthResult
+        return  new Result
             {
-                Message = ex.Message
+                Success = true,
+                Data = user
             };
-        }
     }
 
     public async Task<AuthResult> UpdatePasswordServiceAsync(string userId, UpdatePasswordDto updatePassDto)
     {
-        try
-        {
-            var result = new AuthResult();
-
-            if (updatePassDto.NewPassword != updatePassDto.ConfirmNewPassword)
-            {
-                result.Success = false;
-                result.Message = "Password doesn't match";
-                return result;
-            }
-
-            var user = await userManager.FindByIdAsync(userId);
-
-            if (user == null || !await userManager.CheckPasswordAsync(user, updatePassDto.Password))
-            {
-                result.Message = AuthConstants.Messages.InvalidCredentials;
-                return result;
-            }
-
-            if (user.IsDeleted)
-            {
-                result.Success = false;
-                result.Message = "User is deleted";
-                return result;
-            }
-
-            if (!await userManager.CheckPasswordAsync(user, updatePassDto.NewPassword))
-            {
-                result.Success = false;
-                result.Message = "The Password you entered has not changed";
-                return result;
-            }
-
-            var updateResult =
-                await userManager.ChangePasswordAsync(user, updatePassDto.Password, updatePassDto.NewPassword);
-            if (!updateResult.Succeeded)
-            {
-                result.Success = false;
-                result.Message =
-                    $"Failed to update Password! {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
-                return result;
-            }
-
-            result.Success = true;
-            return result;
-        }
-        catch (ApplicationException ex)
+        if (updatePassDto.NewPassword != updatePassDto.ConfirmNewPassword)
         {
             return new AuthResult
             {
-                Message = ex.Message
+                Success = false, 
+                Message = "Passwords don't match"
             };
         }
-        catch (SecurityTokenException ex)
+
+        var verificationResult = await VerifyPasswordAsync(userId, updatePassDto.Password);
+        if (verificationResult.Success)
+        {
+            var user = verificationResult.Data as AppUser;
+            var passMatchResult = await userManager.CheckPasswordAsync(user, updatePassDto.NewPassword);
+            if (passMatchResult)
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Message = "New password must be different from the current password"
+                };
+            }
+
+            var updateResult = await userManager.ChangePasswordAsync(user, updatePassDto.Password, updatePassDto.NewPassword);
+            if (updateResult.Succeeded)
+            {
+                return new AuthResult { Success = true };
+            }
+            else
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Message = $"Failed to update password: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
+                };
+            }
+        }
+        else
         {
             return new AuthResult
             {
-                Message = ex.Message
+                Success = verificationResult.Success,
+                Message = verificationResult.Message
             };
         }
+
+
+
+            
     }
 
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {
-        try
-        {
-            if (string.IsNullOrEmpty(refreshToken)) throw new SecurityTokenException("Refresh Token is required");
+            if (string.IsNullOrEmpty(refreshToken)) 
+                throw new SecurityTokenException("Refresh Token is required");
             var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
-            if (token == null) throw new SecurityTokenException("Invalid Refresh Token");
+            if (token == null) 
+                throw new SecurityTokenException("Invalid Refresh Token");
 
-            if (!token.IsActive) throw new SecurityTokenException("Deactivated Refresh Token");
+            if (token.IsActive)
+            {
+                await RevokeTokenServiceAsync(refreshToken, RevokeConstants.Messages.RefreshTokenReplaced);
+                var user = await userManager.FindByIdAsync(token.UserId.ToString());
+                if (user == null)
+                    throw new SecurityTokenException("User is not found");
 
-            await RevokeTokenServiceAsync(refreshToken, "Replaced by a new refresh token");
-            var user = await userManager.FindByIdAsync(token.UserId.ToString());
-            if (user == null) throw new SecurityTokenException("User is not found");
-
-            var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
-            var claims = await GenerateUserClaimsAsync(user);
-            var accessToken = jwtTokenService.GenerateAccessToken(claims);
-            return new AuthResult
+                var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+                await refreshTokenRepository.AddAsync(newRefreshToken);
+                await context.SaveChangesAsync();
+                
+                var claims = await GenerateUserClaimsAsync(user);
+                var accessToken = jwtTokenService.GenerateAccessToken(claims);
+                return new AuthResult
+                {
+                    Success = true,
+                    Message = AuthConstants.Messages.TokenRefreshedSuccessfully,
+                    AccessToken = accessToken,
+                    RefreshToken = newRefreshToken.Token,
+                    AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
+                    RefreshTokenExpiration = newRefreshToken.ExpiresAt
+                };
+            }
+            else
             {
-                Success = true,
-                Message = AuthConstants.Messages.TokenRefreshedSuccessfully,
-                AccessToken = accessToken,
-                RefreshToken = newRefreshToken.Token,
-                AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
-                RefreshTokenExpiration = newRefreshToken.ExpiresAt
-            };
-        }
-        catch (ApplicationException ex)
-        {
-            return new AuthResult
-            {
-                Message = ex.Message
-            };
-        }
-        catch (SecurityTokenException ex)
-        {
-            return new AuthResult
-            {
-                Message = ex.Message
-            };
-        }
+                await refreshTokenRepository.RevokeAllUserTokensAsync(token.UserId,RevokeConstants.Messages.OldTokenUsage);
+                await context.SaveChangesAsync();
+                throw new SecurityTokenException("Refresh token reuse detected — all sessions have been revoked");
+            }
     }
 
     public async Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null)
     {
-        if (string.IsNullOrEmpty(refreshToken)) throw new SecurityTokenException("didn't find a Refresh Token");
+        if (string.IsNullOrEmpty(refreshToken)) 
+            throw new SecurityTokenException("didn't find a Refresh Token");
         var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
-        if (token == null) throw new SecurityTokenException("Invalid Refresh Token");
-
-        if (!token.IsActive) throw new SecurityTokenException("Deactivated Refresh Token");
+        if (token == null)
+            throw new SecurityTokenException("Invalid Refresh Token");
+        if (!token.IsActive)
+            throw new SecurityTokenException("Deactivated Refresh Token");
 
         token.RevokedAt = DateTime.UtcNow;
         token.ReasonRevoked = revokeReason;
         await refreshTokenRepository.UpdateAsync(token);
-        var success = await context.SaveChangesAsync() >= 1;
-        return success;
+        return await context.SaveChangesAsync() >= 1;
     }
 
-    private async Task<Result> CheckExistence(string username, string email, string phoneNumber)
+    private async Task<Result> CheckExistence(string username, string email)
     {
-        var userExists = await userManager.FindByNameAsync(username);
-        var result = new Result();
-        if (userExists != null)
+        var userExists = await context.Users
+            .Where(u => u.UserName == username || u.Email == email)
+            .Select(u => new { u.UserName, u.Email})
+            .FirstOrDefaultAsync();
+
+        if (userExists is null)
         {
-            result.Message = AuthConstants.Messages.UsernameAlreadyExists;
-            return result;
+            return new Result
+            {
+                Success = true
+            };
         }
 
-        userExists = await userManager.FindByEmailAsync(email);
-        if (userExists != null)
-        {
-            result.Message = AuthConstants.Messages.EmailAlreadyExists;
-            return result;
-        }
+        var message = userExists.UserName == username
+            ? AuthConstants.Messages.UsernameAlreadyExists
+            : AuthConstants.Messages.EmailAlreadyExists;
 
-        userExists = await context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
-        if (userExists != null)
+        return new Result
         {
-            result.Message = AuthConstants.Messages.PhoneAlreadyExists;
-            return result;
-        }
-
-        result.Success = true;
-        return result;
+            Success = false, 
+            Message = message
+        };
     }
 
     private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user)
@@ -423,27 +392,42 @@ public class AuthService(
         return claims;
     }
 
-    public async Task<Result> DeleteAccountService(string userId)
+    public async Task<Result> DeleteAccountService(string userId ,string password)
     {
-        var result = new Result();
-        var user = await userManager.FindByIdAsync(userId);
-        if (user == null)
+        var verificationResult = await VerifyPasswordAsync(userId, password);
+        if (verificationResult.Success)
         {
-            result.Message = "User not found";
-            return result;
+            var user = verificationResult.Data as AppUser;
+            user.IsDeleted = true;
+            var updateResult = await userManager.UpdateAsync(user);
+            if (updateResult.Succeeded)
+            {
+                await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
+                await context.SaveChangesAsync();
+                return new Result
+                {
+                    Success = true,
+                    Message = "Account deleted successfully"
+                };
+            }
+            else
+            {
+                return new Result
+                {
+                    Success = false,
+                    Message =
+                        $"Failed to delete account: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
+                };
+            }
         }
-        user.IsDeleted = true;
-        var updateResult = await userManager.UpdateAsync(user);
-        if (!updateResult.Succeeded)
+        else
         {
-            result.Success = false;
-            result.Message =
-                $"Failed to delete account! {string.Join(", ", updateResult.Errors.Select(e => e.Description))}";
-            return result;
+            return new Result
+            {
+                Success = verificationResult.Success,
+                Message = verificationResult.Message
+            };
         }
-        result.Success = true;
-        result.Message = "Account deleted successfully";
-        return result;
     }
 
     /// <summary>
