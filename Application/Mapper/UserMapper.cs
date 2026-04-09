@@ -42,6 +42,8 @@ namespace Application.Mapper
                 user.Email = dto.Email;
             if (dto.PhoneNumber != null)
                 user.PhoneNumber = dto.PhoneNumber;
+            if (dto.IsDeleted != user.IsDeleted)
+                user.IsDeleted = dto.IsDeleted;
         }
     }
 }

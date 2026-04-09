@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Domain.Models.Auth;
 using Infrastructure.Configurations;
 using Infrastructure.DataAccess;
@@ -58,6 +58,7 @@ public static class DependencyInjection
 
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
 
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
                           ?? throw new InvalidOperationException("JWT settings are not configured properly");
