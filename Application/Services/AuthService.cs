@@ -1,4 +1,6 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
+using System.Text.RegularExpressions;
+using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.Interfaces;
@@ -6,10 +8,14 @@ using Application.Mapper;
 using Domain.Constants;
 using Domain.Models;
 using Domain.Models.Auth;
+using Google.Apis.Auth;
+using Infrastructure.Configurations;
 using Infrastructure.DataAccess;
 using Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Application.Services;
@@ -18,7 +24,8 @@ public class AuthService(
     UserManager<AppUser> userManager,
     IJwtService jwtTokenService,
     AppDbContext context,
-    IRefreshTokenRepository refreshTokenRepository) : IAuthService
+    IRefreshTokenRepository refreshTokenRepository,
+    IOptions<GoogleAuthSettings> googleAuthSettings) : IAuthService
 
 {
     public async Task<Result> RegisterServiceAsync(RegisterDto registerDto)
@@ -421,5 +428,156 @@ public class AuthService(
                 Message = verificationResult.Message
             };
         }
+    }
+
+    /// <summary>
+    /// Validates a Google id_token issued to the client, then finds-or-creates
+    /// an AppUser + Patient/Doctor row and returns our own JWT pair.
+    /// </summary>
+    public async Task<AuthResult> GoogleLoginServiceAsync(GoogleLoginDto dto)
+    {
+        // 1. Validate the Google id_token server-side
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            var settings = new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleAuthSettings.Value.ClientId }
+            };
+            payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
+        }
+        catch (InvalidJwtException)
+        {
+            return new AuthResult { Message = AuthConstants.Messages.GoogleAuthFailed };
+        }
+
+        var email = payload.Email;
+
+        // 2. Find existing user by email (handles both Google-first and password-first accounts)
+        var existingUser = await userManager.FindByEmailAsync(email);
+
+        if (existingUser != null)
+        {
+            // --- Existing user: log them in ---
+            if (existingUser.IsDeleted)
+                return new AuthResult { Message = "User is deleted" };
+
+            return await BuildAuthResultAsync(existingUser);
+        }
+
+        // 3. New user — validate Doctor-specific fields before creating
+        if (dto.IsDoctor)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ProfessionalPracticeLicense) ||
+                string.IsNullOrWhiteSpace(dto.IssuingAuthority))
+            {
+                return new AuthResult
+                {
+                    Message = "Professional Practice License and Issuing Authority are required for doctor registration"
+                };
+            }
+        }
+
+        // 4. Auto-generate a unique username from the Google display name
+        var username = await GenerateUniqueUsernameAsync(payload.Name ?? email.Split('@')[0]);
+
+        var newUser = new AppUser
+        {
+            UserName = username,
+            Email = email,
+            EmailConfirmed = true,  // Google has already verified the email
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        using var transaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            // Create the identity user without a password
+            var creationResult = await userManager.CreateAsync(newUser);
+            if (!creationResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new AuthResult
+                {
+                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                };
+            }
+
+            string role;
+            if (!dto.IsDoctor)
+            {
+                role = "Patient";
+                await context.Patients.AddAsync(new Patient { UserId = newUser.Id });
+            }
+            else
+            {
+                role = "Doctor";
+                await context.Doctors.AddAsync(new Doctor
+                {
+                    UserId = newUser.Id,
+                    ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense!,
+                    IssuingAuthority = dto.IssuingAuthority!
+                });
+            }
+
+            await context.SaveChangesAsync();
+
+            var roleResult = await userManager.AddToRoleAsync(newUser, role);
+            if (!roleResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new AuthResult { Message = "Failed to assign role to new user" };
+            }
+
+            await transaction.CommitAsync();
+            return await BuildAuthResultAsync(newUser);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return new AuthResult { Message = ex.Message };
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>Generates JWT + refresh token for an already-verified user.</summary>
+    private async Task<AuthResult> BuildAuthResultAsync(AppUser user)
+    {
+        var claims = await GenerateUserClaimsAsync(user);
+        var accessToken = jwtTokenService.GenerateAccessToken(claims);
+        var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+        return new AuthResult
+        {
+            Success = true,
+            AccessToken = accessToken,
+            AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
+        };
+    }
+
+    /// <summary>
+    /// Derives a URL-safe username from a display name and appends a random
+    /// numeric suffix until a unique one is found.
+    /// </summary>
+    private async Task<string> GenerateUniqueUsernameAsync(string displayName)
+    {
+        // Replace spaces/special chars with dots, lowercase
+        var baseUsername = Regex.Replace(displayName.ToLowerInvariant(), @"[^a-z0-9._+\-]", ".");
+        baseUsername = Regex.Replace(baseUsername, @"\.{2,}", ".").Trim('.');
+        if (string.IsNullOrEmpty(baseUsername)) baseUsername = "user";
+
+        var candidate = baseUsername;
+        var random = new Random();
+        while (await userManager.FindByNameAsync(candidate) != null)
+        {
+            candidate = $"{baseUsername}_{random.Next(10, 9999)}";
+        }
+
+        return candidate;
     }
 }
