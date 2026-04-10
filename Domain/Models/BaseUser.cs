@@ -6,4 +6,5 @@ public class BaseUser
 {
     public string? ImagePath { get; set; }
     public Gender Gender { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

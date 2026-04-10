@@ -34,7 +34,7 @@ namespace Application.Mapper
             };
         }
 
-        public static void ToUpdateEntity(this UpdateUserDto dto, AppUser user)
+        public static void ToUpdateEntity(this UpdatePatientDto dto, AppUser user)
         {
             if (dto.UserName != null)
                 user.UserName = dto.UserName;

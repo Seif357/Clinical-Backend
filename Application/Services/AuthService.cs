@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
+using Application.ExtentionMethods;
 using Application.Interfaces;
 using Application.Mapper;
 using Domain.Constants;
@@ -224,19 +225,19 @@ public class AuthService(
     /// Verifies the user's password and returns the AppUser on success via Result.Data,
     /// avoiding a redundant FindByIdAsync call in the caller.
     /// </summary>
-    private async Task<Result> VerifyPasswordAsync(string userId, string password)
+    private async Task<Result<AppUser>> VerifyPasswordAsync(string userId, string password)
     {
         var user = await userManager.FindByIdAsync(userId);
 
         if (user == null || !await userManager.CheckPasswordAsync(user, password) || user.IsDeleted)
         {
-            return new Result
+            return new Result<AppUser>
             {
                 Success = false,
                 Message = AuthConstants.Messages.InvalidCredentials,
             };
         }
-        return  new Result
+        return  new Result<AppUser>
             {
                 Success = true,
                 Data = user
@@ -355,7 +356,7 @@ public class AuthService(
     {
         var userExists = await context.Users
             .Where(u => u.UserName == username || u.Email == email)
-            .Select(u => new { u.UserName, u.Email})
+            .Select(u => new { u.Id, u.UserName, u.Email})
             .FirstOrDefaultAsync();
 
         if (userExists is null)
@@ -392,18 +393,38 @@ public class AuthService(
         return claims;
     }
 
-    public async Task<Result> DeleteAccountService(string userId ,string password)
+    public async Task<Result> DeleteAccountService(string userId, string userRole, string password)
     {
+        if (userRole.IsAdmin())
+        {
+            return new Result
+            {
+                Success = false,
+                Message = "Can't delete this account"
+            };
+        }
         var verificationResult = await VerifyPasswordAsync(userId, password);
         if (verificationResult.Success)
         {
-            var user = verificationResult.Data as AppUser;
+            
+            var user = verificationResult.Data;
             user.IsDeleted = true;
             var updateResult = await userManager.UpdateAsync(user);
             if (updateResult.Succeeded)
             {
                 await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
+                if (userRole.IsDoctor())
+                {
+                    var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
+                    if (doctor != null) doctor.IsDeleted = true;
+                }
+                else if (userRole.IsPatient())
+                {
+                    var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
+                    if (patient != null) patient.IsDeleted = true;
+                }
                 await context.SaveChangesAsync();
+                
                 return new Result
                 {
                     Success = true,
@@ -429,7 +450,6 @@ public class AuthService(
             };
         }
     }
-
     /// <summary>
     /// Validates a Google id_token issued to the client, then finds-or-creates
     /// an AppUser + Patient/Doctor row and returns our own JWT pair.

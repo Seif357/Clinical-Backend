@@ -161,9 +161,10 @@ public class AuthController(IAuthService authService,
     public async Task<IActionResult> DeleteAccount([FromBody]DeleteAccountDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userRole = User.FindFirstValue(ClaimTypes.Role);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
-
-        var result = await authService.DeleteAccountService(userId, dto.Password);
+        
+        var result = await authService.DeleteAccountService(userId, userRole,dto.Password);
         if (!result.Success) return BadRequest(result);
 
         AuthHelper.DeleteRefreshTokenCookie(Response, environment);
