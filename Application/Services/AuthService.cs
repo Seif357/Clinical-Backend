@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.ExtentionMethods;
@@ -14,6 +15,7 @@ using Infrastructure.DataAccess;
 using Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -598,5 +600,4 @@ public class AuthService(
 
         return candidate;
     }
-
 }

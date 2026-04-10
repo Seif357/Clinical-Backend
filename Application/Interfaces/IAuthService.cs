@@ -14,4 +14,5 @@ public interface IAuthService
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
     Task<AuthResult> GoogleLoginServiceAsync(GoogleLoginDto dto);
     Task<Result> DeleteAccountService(string userId, string? userRole, string password);
+
 }
