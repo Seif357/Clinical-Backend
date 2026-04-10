@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using API.Helpers;
 using Application.Dto.AuthDto;
 using Application.DTOs;
@@ -23,6 +23,30 @@ public class AuthController(IAuthService authService,
     {
         var result = await authService.RegisterServiceAsync(registerDto);
         if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Sign in (or sign up) using a Google id_token obtained by the client via Google Sign-In.
+    /// On success the refresh token is set as an HttpOnly cookie, just like the standard login.
+    /// Doctors must also supply ProfessionalPracticeLicense and IssuingAuthority on first sign-up.
+    /// </summary>
+    [HttpPost("google-login")]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+    {
+        var result = await authService.GoogleLoginServiceAsync(dto);
+        if (!result.Success) return BadRequest(result);
+
+        if (!string.IsNullOrEmpty(result.RefreshToken))
+            AuthHelper.SetRefreshTokenCookie(Response, result.RefreshToken, result.RefreshTokenExpiration, environment, jwtService.GetRefreshTokenExpirationDays());
+        result.RefreshToken = HttpContext.Request.Headers["X-Client-Type"]
+            .ToString().Equals("server", StringComparison.OrdinalIgnoreCase)
+                ? result.RefreshToken
+                : null;
+
         return Ok(result);
     }
 
