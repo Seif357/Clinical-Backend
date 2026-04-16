@@ -15,6 +15,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddValidatorsFromAssemblyContaining<UploadImageValidator>();
+        services.AddScoped<IDoctorService, DoctorService>();
+        services.AddScoped<IPatientService,PatientService>();
         
         return services;
     }
