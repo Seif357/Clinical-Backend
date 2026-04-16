@@ -14,5 +14,7 @@ public static class AuthConstants
         public const string EmailAlreadyVerified = "Email already verified";
         public const string EmailVerificationSent = "Email verification link sent to your email";
         public const string PhoneAlreadyExists = "Phone number already exists!";
+        public const string GoogleAuthFailed = "Google authentication failed. Please try again.";
+        public const string LoginFailed = "Login failed";
     }
 }

@@ -5,26 +5,21 @@ using System.Text;
 using Application.Interfaces;
 using Domain.Models.Auth;
 using Infrastructure.Configurations;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Application.Services;
 
-public class JwtService(IConfiguration configuration, ILogger<JwtService> logger,IOptions<JwtSettings> jwtSettings) : IJwtService
+public class JwtService(ILogger<JwtService> logger,IOptions<JwtSettings> jwtSettings,TokenValidationParameters tokenValidationParameters) : IJwtService
 {
     
     public string GenerateAccessToken(List<Claim> claims)
     {
         logger.LogDebug("Generating access token for user: {UserId}", claims.GetUserId());
+        
 
-        var section = configuration.GetSection("JwtSettings");
-        var secretKey = section["SecretKey"] ??
-                        throw new InvalidOperationException("JWT SecretKey is not configured");
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(tokenValidationParameters.IssuerSigningKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             jwtSettings.Value.Issuer,
             jwtSettings.Value.Audience,
@@ -48,29 +43,45 @@ public class JwtService(IConfiguration configuration, ILogger<JwtService> logger
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomNumber);
 
-        var refreshTokenExpirationDays = GetRefreshTokenExpirationDays();
 
         var refreshToken = new RefreshToken
         {
             Token = Convert.ToBase64String(randomNumber),
             UserId = userId,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays)
+            ExpiresAt = DateTime.UtcNow.AddDays(jwtSettings.Value.RefreshTokenExpirationInDays)
         };
 
         logger.LogDebug("Refresh token generated for user: {UserId}, expires in {Days} days",
-            userId, refreshTokenExpirationDays);
+            userId, jwtSettings.Value.RefreshTokenExpirationInDays);
 
         return refreshToken;
     }
+    /// <summary>
+    /// Reuses the singleton TokenValidationParameters registered in DI,
+    /// with ValidateLifetime overridden to false — so only genuinely expired
+    /// but otherwise valid tokens return true, making them candidates for silent refresh.
+    /// Tampered or malformed tokens return false and fall through to the normal 401 pipeline.
+    /// </summary>
+    public async Task<TokenValidationStatus> IsTokenExpiredAsync(string token)
+    {
+            var handler = new JwtSecurityTokenHandler();
+            var result = await handler.ValidateTokenAsync(token, tokenValidationParameters);
 
+            if (result.IsValid)
+                return TokenValidationStatus.Valid;
+
+            return result.Exception is SecurityTokenExpiredException
+                ? TokenValidationStatus.Expired
+                : TokenValidationStatus.Invalid;
+    }
     public int GetRefreshTokenExpirationDays()
     {
-        return int.Parse(configuration.GetSection("JwtSettings")["RefreshTokenExpirationInDays"] ?? "7");
+        return jwtSettings.Value.RefreshTokenExpirationInDays;
     }
 
     public int GetTokenExpirationMinutes()
     {
-        return int.Parse(configuration.GetSection("JwtSettings")["ExpirationInMinutes"] ?? "60");
+        return jwtSettings.Value.ExpirationInMinutes;
     }
 }

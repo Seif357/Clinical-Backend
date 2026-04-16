@@ -9,4 +9,5 @@ public interface IJwtService
     RefreshToken GenerateRefreshToken(int userId);
     int GetRefreshTokenExpirationDays();
     int GetTokenExpirationMinutes();
+    Task<TokenValidationStatus> IsTokenExpiredAsync(string token);
 }
