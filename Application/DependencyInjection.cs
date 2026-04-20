@@ -17,6 +17,10 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<UploadImageValidator>();
         services.AddScoped<IDoctorService, DoctorService>();
         services.AddScoped<IPatientService,PatientService>();
+        services.AddScoped<IPatientRequestService, PatientRequestService>();
+        services.AddScoped<IPatientResponseService, PatientResponseService>();
+        services.AddScoped<IDoctorRequestService, DoctorRequestService>();
+        services.AddScoped<IDoctorResponseService, DoctorResponseService>();
         
         return services;
     }
