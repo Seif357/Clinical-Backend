@@ -1,5 +1,8 @@
+using API.Hubs;
 using API.Middleware;
+using API.Services;
 using Application;
+using Application.Interfaces;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -8,7 +11,7 @@ namespace API;
 
 public class Program
 {
-    public static async Task Main(string[] args)
+    public static void Main(string[] args)
     {
         // Configure Serilog early in the pipeline
         Log.Logger = new LoggerConfiguration()
@@ -45,6 +48,8 @@ public class Program
             builder.Host.UseSerilog();
 
             builder.Services.AddControllers();
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<INotificationService, NotificationService>(); 
             builder.Services.AddInfrastructureAsync(builder.Configuration, builder.Environment);
             builder.Services.AddApplication(builder.Configuration);
             builder.Services.AddOpenApi();
@@ -52,7 +57,19 @@ public class Program
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.AllowAnyOrigin()
+                    policy.WithOrigins(
+                            "https://colon-cancer-detection.vercel.app",
+                            "https://clinical.runasp.net",
+                            "http://localhost:3000", 
+                            "http://localhost:4200", 
+                            "http://localhost:5173",
+                            "http://localhost",
+                            "capacitor://localhost",
+                            "ionic://localhost",
+                            "https://localhost:7123", 
+                            "http://localhost:5016"
+                        )
+                        .AllowCredentials()
                         .AllowAnyMethod()
                         .AllowAnyHeader();
                 });
@@ -80,10 +97,11 @@ public class Program
                 options.WithTitle("My API Documentation")
                     .WithTheme(ScalarTheme.Purple);
             });
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
-
+            app.MapHub<NotificationHub>("/hubs/notifications");
             Log.Information("Clinical Backend API application started successfully");
             app.Run();
         }

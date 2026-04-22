@@ -91,6 +91,18 @@ public static class DependencyInjection
                 // RequireHttpsMetadata is a security feature that ensures the token is only transmitted over secure HTTPS connections. Setting it to true in production environments helps protect sensitive information from being intercepted by attackers, while allowing it to be false in development environments for easier testing and debugging without the need for HTTPS.
                 options.RequireHttpsMetadata = environment.IsProduction();
                 options.TokenValidationParameters = tokenValidationParameters;
+                // Required for SignalR: pass JWT via query string ?access_token
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            context.Token = accessToken;
+                        return Task.CompletedTask;
+                    }
+                };
             });
         return services;
     }

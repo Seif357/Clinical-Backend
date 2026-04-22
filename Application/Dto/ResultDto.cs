@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
 
 namespace Application.DTOs;
 
@@ -16,8 +18,15 @@ public class Result : IActionResult
 
     public async Task ExecuteResultAsync(ActionContext context)
     {
-        context.HttpContext.Response.StatusCode = 200;
-        await context.HttpContext.Response.WriteAsync(Message);
-        
+        var response = context.HttpContext.Response;
+        response.ContentType = "application/json";
+        response.StatusCode = Success ? 200 : 400;
+
+        var payload = new { Success, Message, Data };
+
+        await response.WriteAsync(JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        }));
     }
 }
