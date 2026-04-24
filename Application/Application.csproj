@@ -7,8 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
         <PackageReference Include="FluentValidation" Version="12.1.1" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+        <PackageReference Include="MailKit" Version="4.16.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     </ItemGroup>
@@ -19,6 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Common\" />
       <Folder Include="Dto\AI\" />
     </ItemGroup>
 

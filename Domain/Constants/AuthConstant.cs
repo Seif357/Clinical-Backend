@@ -16,5 +16,8 @@ public static class AuthConstants
         public const string PhoneAlreadyExists = "Phone number already exists!";
         public const string GoogleAuthFailed = "Google authentication failed. Please try again.";
         public const string LoginFailed = "Login failed";
+        public const string StatusPending = "The Admin hasn't accepted your registeraion request yet";
+        public const string StatusRejected = "The Admin has Rejected your registeraion request";
+
     }
 }

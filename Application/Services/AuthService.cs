@@ -13,6 +13,7 @@ using Google.Apis.Auth;
 using Infrastructure.Configurations;
 using Infrastructure.DataAccess;
 using Infrastructure.Repositories.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -26,6 +27,8 @@ public class AuthService(
     IJwtService jwtTokenService,
     AppDbContext context,
     IRefreshTokenRepository refreshTokenRepository,
+    IDeviceRepository deviceRepository,
+    IHttpContextAccessor httpContextAccessor,
     IOptions<GoogleAuthSettings> googleAuthSettings) : IAuthService
 
 {
@@ -88,27 +91,26 @@ public class AuthService(
             }
             
             var roleResult = await userManager.AddToRoleAsync(newUser, role);
-            if (roleResult.Succeeded)
-            {
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                
-                return new Result
-                {
-                    Success = true, 
-                    Message = AuthConstants.Messages.UserRegisteredSuccessfully
-                };
-            }
-            else
+            if (!roleResult.Succeeded)
             {
                 await transaction.RollbackAsync();
-                return new Result
-                {
-                    Success = false, 
-                    Message = "Failed to assign role to new user"
-                };
-
+                return new Result { Success = false, Message = "Failed to assign role to new user" };
             }
+ 
+            // Seed primary email row
+            await context.UserEmails.AddAsync(new UserEmail
+            {
+                UserId     = newUser.Id,
+                Email      = registerDto.Email.ToLowerInvariant(),
+                IsPrimary  = true,
+                IsVerified = false,
+                CreatedAt  = DateTime.UtcNow
+            });
+ 
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+ 
+            return new Result { Success = true, Message = AuthConstants.Messages.UserRegisteredSuccessfully };
     }
 
     public async Task<AuthResult> LoginServiceAsync(LoginDto loginDto)
@@ -125,11 +127,33 @@ public class AuthService(
                     Message = AuthConstants.Messages.InvalidCredentials
                 };
             }
-
-
-            var claims = await GenerateUserClaimsAsync(user);
+            var roles = await userManager.GetRolesAsync(user);
+            if (roles.Contains(Role.Doctor.ToString()))
+            {
+                var status = await GetDoctorApprovalStatusAsync(user);
+                if (status.Equals(DoctorApprovalStatus.Pending))
+                {
+                    return new AuthResult
+                    {
+                        Success = false, 
+                        Message = AuthConstants.Messages.StatusPending
+                    };
+                }
+                if (status.Equals(DoctorApprovalStatus.Rejected))
+                {
+                    return new AuthResult
+                    {
+                        Success = false, 
+                        Message = AuthConstants.Messages.StatusRejected
+                    };
+                }
+            }
+            var device = await GetOrCreateDeviceAsync(user.Id);
+            await context.SaveChangesAsync();
+            var claims = await GenerateUserClaimsAsync(user, device.Id);
             var accessToken = jwtTokenService.GenerateAccessToken(claims);
             var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+            refreshToken.DeviceId = device.Id;
 
             await refreshTokenRepository.AddAsync(refreshToken);
             await context.SaveChangesAsync();
@@ -166,19 +190,9 @@ public class AuthService(
 
             user.Email = updateEmail.NewEmail;
             var updateResult = await userManager.UpdateAsync(user);
-            if (updateResult.Succeeded)
-            {
-                return new AuthResult { Success = true };
-
-            }
-            else
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Message = $"Failed to update email: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
-                };
-            }
+            return updateResult.Succeeded
+                ? new AuthResult { Success = true }
+                : new AuthResult { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
     }
 
     public async Task<AuthResult> UpdateUsernameServiceAsync(string userId, UpdateUsernameDto updateUsernameDto)
@@ -204,99 +218,11 @@ public class AuthService(
             
             user.UserName = updateUsernameDto.NewUserName;
             var updateResult = await userManager.UpdateAsync(user);
-            if (updateResult.Succeeded)
-            {
-                return new AuthResult
-                {
-                    Success = true
-                };
-            }
-            else
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Message = $"Failed to update username: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
-                };
-            }
+            return updateResult.Succeeded
+                ? new AuthResult { Success = true }
+                : new AuthResult { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
     }
-
-    /// <summary>
-    /// Verifies the user's password and returns the AppUser on success via Result.Data,
-    /// avoiding a redundant FindByIdAsync call in the caller.
-    /// </summary>
-    private async Task<Result<AppUser>> VerifyPasswordAsync(string userId, string password)
-    {
-        var user = await userManager.FindByIdAsync(userId);
-
-        if (user == null || !await userManager.CheckPasswordAsync(user, password) || user.IsDeleted)
-        {
-            return new Result<AppUser>
-            {
-                Success = false,
-                Message = AuthConstants.Messages.InvalidCredentials,
-            };
-        }
-        return  new Result<AppUser>
-            {
-                Success = true,
-                Data = user
-            };
-    }
-
-    public async Task<AuthResult> UpdatePasswordServiceAsync(string userId, UpdatePasswordDto updatePassDto)
-    {
-        if (updatePassDto.NewPassword != updatePassDto.ConfirmNewPassword)
-        {
-            return new AuthResult
-            {
-                Success = false, 
-                Message = "Passwords don't match"
-            };
-        }
-
-        var verificationResult = await VerifyPasswordAsync(userId, updatePassDto.Password);
-        if (verificationResult.Success)
-        {
-            var user = verificationResult.Data as AppUser;
-            var passMatchResult = await userManager.CheckPasswordAsync(user, updatePassDto.NewPassword);
-            if (passMatchResult)
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Message = "New password must be different from the current password"
-                };
-            }
-
-            var updateResult = await userManager.ChangePasswordAsync(user, updatePassDto.Password, updatePassDto.NewPassword);
-            if (updateResult.Succeeded)
-            {
-                return new AuthResult { Success = true };
-            }
-            else
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Message = $"Failed to update password: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
-                };
-            }
-        }
-        else
-        {
-            return new AuthResult
-            {
-                Success = verificationResult.Success,
-                Message = verificationResult.Message
-            };
-        }
-
-
-
-            
-    }
-
+    
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {
             if (string.IsNullOrEmpty(refreshToken)) 
@@ -305,18 +231,25 @@ public class AuthService(
             if (token == null) 
                 throw new SecurityTokenException("Invalid Refresh Token");
 
-            if (token.IsActive)
+            if (!token.IsActive)
             {
-                await RevokeTokenServiceAsync(refreshToken, RevokeConstants.Messages.RefreshTokenReplaced);
+                await refreshTokenRepository.RevokeAllUserTokensAsync(token.UserId,RevokeConstants.Messages.OldTokenUsage);
+                await context.SaveChangesAsync();
+                throw new SecurityTokenException("Refresh token reuse detected — all sessions have been revoked");
+
+            } 
+            await RevokeTokenServiceAsync(refreshToken, RevokeConstants.Messages.RefreshTokenReplaced);
                 var user = await userManager.FindByIdAsync(token.UserId.ToString());
                 if (user == null)
                     throw new SecurityTokenException("User is not found");
-
+                if (token.DeviceId.HasValue)
+                    await deviceRepository.UpdateLastSeenAsync(token.DeviceId.Value);
                 var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+                newRefreshToken.DeviceId = token.DeviceId; // carry device forward
                 await refreshTokenRepository.AddAsync(newRefreshToken);
                 await context.SaveChangesAsync();
                 
-                var claims = await GenerateUserClaimsAsync(user);
+                var claims = await GenerateUserClaimsAsync(user, token.DeviceId);
                 var accessToken = jwtTokenService.GenerateAccessToken(claims);
                 return new AuthResult
                 {
@@ -326,20 +259,13 @@ public class AuthService(
                     RefreshToken = newRefreshToken.Token,
                     AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
                     RefreshTokenExpiration = newRefreshToken.ExpiresAt
-                };
-            }
-            else
-            {
-                await refreshTokenRepository.RevokeAllUserTokensAsync(token.UserId,RevokeConstants.Messages.OldTokenUsage);
-                await context.SaveChangesAsync();
-                throw new SecurityTokenException("Refresh token reuse detected — all sessions have been revoked");
-            }
+                }; 
     }
 
     public async Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null)
     {
         if (string.IsNullOrEmpty(refreshToken)) 
-            throw new SecurityTokenException("didn't find a Refresh Token");
+            throw new SecurityTokenException("Refresh Token is required");
         var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
         if (token == null)
             throw new SecurityTokenException("Invalid Refresh Token");
@@ -350,47 +276,6 @@ public class AuthService(
         token.ReasonRevoked = revokeReason;
         await refreshTokenRepository.UpdateAsync(token);
         return await context.SaveChangesAsync() >= 1;
-    }
-
-    private async Task<Result> CheckExistence(string username, string email)
-    {
-        var userExists = await context.Users
-            .Where(u => u.UserName == username || u.Email == email)
-            .Select(u => new { u.Id, u.UserName, u.Email})
-            .FirstOrDefaultAsync();
-
-        if (userExists is null)
-        {
-            return new Result
-            {
-                Success = true
-            };
-        }
-
-        var message = userExists.UserName == username
-            ? AuthConstants.Messages.UsernameAlreadyExists
-            : AuthConstants.Messages.EmailAlreadyExists;
-
-        return new Result
-        {
-            Success = false, 
-            Message = message
-        };
-    }
-
-    private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName ?? string.Empty),
-            new(ClaimTypes.Email, user.Email!)
-        };
-        var roles = await userManager.GetRolesAsync(user);
-        foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));
-        var userClaims = await userManager.GetClaimsAsync(user);
-        claims.AddRange(userClaims);
-        return claims;
     }
 
     public async Task<Result> DeleteAccountService(string userId, string userRole, string password)
@@ -404,51 +289,30 @@ public class AuthService(
             };
         }
         var verificationResult = await VerifyPasswordAsync(userId, password);
-        if (verificationResult.Success)
+        if (!verificationResult.Success)
+            return new Result { Success = false, Message = verificationResult.Message };
+ 
+        var user = verificationResult.Data!;
+        user.IsDeleted = true;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return new Result { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
+ 
+        await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
+ 
+        if (userRole.IsDoctor())
         {
-            
-            var user = verificationResult.Data;
-            user.IsDeleted = true;
-            var updateResult = await userManager.UpdateAsync(user);
-            if (updateResult.Succeeded)
-            {
-                await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
-                if (userRole.IsDoctor())
-                {
-                    var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
-                    if (doctor != null) doctor.IsDeleted = true;
-                }
-                else if (userRole.IsPatient())
-                {
-                    var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
-                    if (patient != null) patient.IsDeleted = true;
-                }
-                await context.SaveChangesAsync();
-                
-                return new Result
-                {
-                    Success = true,
-                    Message = "Account deleted successfully"
-                };
-            }
-            else
-            {
-                return new Result
-                {
-                    Success = false,
-                    Message =
-                        $"Failed to delete account: {string.Join(", ", updateResult.Errors.Select(e => e.Description))}"
-                };
-            }
+            var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
+            if (doctor != null) doctor.IsDeleted = true;
         }
-        else
+        else if (userRole.IsPatient())
         {
-            return new Result
-            {
-                Success = verificationResult.Success,
-                Message = verificationResult.Message
-            };
+            var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            if (patient != null) patient.IsDeleted = true;
         }
+ 
+        await context.SaveChangesAsync();
+        return new Result { Success = true, Message = "Account deleted successfully" };
     }
     /// <summary>
     /// Validates a Google id_token issued to the client, then finds-or-creates
@@ -559,11 +423,65 @@ public class AuthService(
             return new AuthResult { Message = ex.Message };
         }
     }
+    private async Task<Result> CheckExistence(string username, string email)
+    {
+        var userExists = await context.Users
+            .Where(u => u.UserName == username || u.Email == email)
+            .Select(u => new { u.Id, u.UserName, u.Email})
+            .FirstOrDefaultAsync();
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
+        if (userExists is null)
+        {
+            return new Result
+            {
+                Success = true
+            };
+        }
 
+        var message = userExists.UserName == username
+            ? AuthConstants.Messages.UsernameAlreadyExists
+            : AuthConstants.Messages.EmailAlreadyExists;
+
+        return new Result
+        {
+            Success = false, 
+            Message = message
+        };
+    }
+    private async Task<Result<AppUser>> VerifyPasswordAsync(string userId, string password)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+
+        if (user == null || !await userManager.CheckPasswordAsync(user, password) || user.IsDeleted)
+        {
+            return new Result<AppUser>
+            {
+                Success = false,
+                Message = AuthConstants.Messages.InvalidCredentials,
+            };
+        }
+        return  new Result<AppUser>
+        {
+            Success = true,
+            Data = user
+        };
+    }
+    private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user, int? deviceId = null)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.UserName ?? string.Empty),
+            new(ClaimTypes.Email, user.Email!)
+        };
+        if (deviceId.HasValue)
+            claims.Add(new Claim("device_id", deviceId.Value.ToString()));
+        var roles = await userManager.GetRolesAsync(user);
+        foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));
+        var userClaims = await userManager.GetClaimsAsync(user);
+        claims.AddRange(userClaims);
+        return claims;
+    }
     /// <summary>Generates JWT + refresh token for an already-verified user.</summary>
     private async Task<AuthResult> BuildAuthResultAsync(AppUser user)
     {
@@ -579,7 +497,6 @@ public class AuthService(
             RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
         };
     }
-
     /// <summary>
     /// Derives a URL-safe username from a display name and appends a random
     /// numeric suffix until a unique one is found.
@@ -599,5 +516,19 @@ public class AuthService(
         }
 
         return candidate;
+    }
+    private async Task<DoctorApprovalStatus?> GetDoctorApprovalStatusAsync(AppUser user)
+    {
+        return await context.Doctors
+            .Where(p => p.UserId == user.Id)
+            .Select(s => (DoctorApprovalStatus?)s.ApprovalStatus)
+            .FirstOrDefaultAsync();
+    }
+    private async Task<Device> GetOrCreateDeviceAsync(int userId)
+    {
+        var http      = httpContextAccessor.HttpContext;
+        var userAgent = http?.Request.Headers["User-Agent"].ToString() ?? "unknown";
+        var ip        = http?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return await deviceRepository.GetOrCreateAsync(userId, userAgent, ip);
     }
 }

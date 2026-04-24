@@ -2,6 +2,7 @@
 using Application.Services;
 using Application.Validators;
 using FluentValidation;
+using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,7 +22,14 @@ public static class DependencyInjection
         services.AddScoped<IPatientResponseService, PatientResponseService>();
         services.AddScoped<IDoctorRequestService, DoctorRequestService>();
         services.AddScoped<IDoctorResponseService, DoctorResponseService>();
-        
+
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<ISmsService, SmsService>();
+        services.AddScoped<IOtpService, OtpService>();
+        services.AddScoped<IContactService, ContactService>();
+        services.AddScoped<IDoctorAdminService, DoctorAdminService>();
+        services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IDeviceService, DeviceService>();
         return services;
     }
 }
