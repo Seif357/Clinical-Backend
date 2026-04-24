@@ -68,8 +68,10 @@ public class AuthController(IAuthService authService,
                 : BadRequest(result);
         }
         AuthHelper.SetRefreshTokenCookie(Response, result.RefreshToken, result.RefreshTokenExpiration, environment, jwtService.GetRefreshTokenExpirationDays());
-        result.RefreshToken = HttpContext.Request.Headers["X-Client-Type"].ToString()
-            .Equals("server", StringComparison.OrdinalIgnoreCase)
+        var clientType = HttpContext.Request.Headers["X-Client-Type"].ToString();
+        var isValid = new[] { "server", "mobile-feso" }
+            .Contains(clientType, StringComparer.OrdinalIgnoreCase);
+        result.RefreshToken = isValid
             ? result.RefreshToken
             : null;
         return Ok(result);
@@ -137,20 +139,6 @@ public class AuthController(IAuthService authService,
             {
                 return BadRequest();
             }
-    }
-
-    [HttpPut("updatePassword")]
-    [Authorize]
-    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdatePassword([FromBody]UpdatePasswordDto dto)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        var result = await authService.UpdatePasswordServiceAsync(userId, dto);
-        if (!result.Success) return BadRequest(result);
-        return Ok(result);
     }
     
     [HttpDelete("delete")]

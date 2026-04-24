@@ -19,5 +19,16 @@ public class Doctor : BaseUser
 
     public required string IssuingAuthority { get; set; }
 
-    [ForeignKey("UserId")] public AppUser DoctorData { get; set; }
+    // ── Doctor approval ──────────────────────────────────────────────────────
+    public DoctorApprovalStatus ApprovalStatus { get; set; } = DoctorApprovalStatus.Pending;
+
+    /// <summary>Set by the admin who approved/rejected the registration.</summary>
+    public int? ApprovedByAdminId { get; set; }
+
+    public DateTime? ApprovedAt { get; set; }
+
+    /// <summary>Optional rejection reason visible to the doctor.</summary>
+    public string? RejectionReason { get; set; }
+
+    [ForeignKey("UserId")] public AppUser DoctorData { get; set; } = null!;
 }
