@@ -27,7 +27,6 @@ public class AuthService(
     IJwtService jwtTokenService,
     AppDbContext context,
     IRefreshTokenRepository refreshTokenRepository,
-    IDeviceRepository deviceRepository,
     IHttpContextAccessor httpContextAccessor,
     IOptions<GoogleAuthSettings> googleAuthSettings) : IAuthService
 
@@ -148,12 +147,10 @@ public class AuthService(
                     };
                 }
             }
-            var device = await GetOrCreateDeviceAsync(user.Id);
             await context.SaveChangesAsync();
-            var claims = await GenerateUserClaimsAsync(user, device.Id);
+            var claims = await GenerateUserClaimsAsync(user);
             var accessToken = jwtTokenService.GenerateAccessToken(claims);
             var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
-            refreshToken.DeviceId = device.Id;
 
             await refreshTokenRepository.AddAsync(refreshToken);
             await context.SaveChangesAsync();
@@ -242,14 +239,12 @@ public class AuthService(
                 var user = await userManager.FindByIdAsync(token.UserId.ToString());
                 if (user == null)
                     throw new SecurityTokenException("User is not found");
-                if (token.DeviceId.HasValue)
-                    await deviceRepository.UpdateLastSeenAsync(token.DeviceId.Value);
                 var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
                 newRefreshToken.DeviceId = token.DeviceId; // carry device forward
                 await refreshTokenRepository.AddAsync(newRefreshToken);
                 await context.SaveChangesAsync();
                 
-                var claims = await GenerateUserClaimsAsync(user, token.DeviceId);
+                var claims = await GenerateUserClaimsAsync(user);
                 var accessToken = jwtTokenService.GenerateAccessToken(claims);
                 return new AuthResult
                 {
@@ -466,7 +461,7 @@ public class AuthService(
             Data = user
         };
     }
-    private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user, int? deviceId = null)
+    private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user)
     {
         var claims = new List<Claim>
         {
@@ -474,8 +469,6 @@ public class AuthService(
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
             new(ClaimTypes.Email, user.Email!)
         };
-        if (deviceId.HasValue)
-            claims.Add(new Claim("device_id", deviceId.Value.ToString()));
         var roles = await userManager.GetRolesAsync(user);
         foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));
         var userClaims = await userManager.GetClaimsAsync(user);
@@ -523,12 +516,5 @@ public class AuthService(
             .Where(p => p.UserId == user.Id)
             .Select(s => (DoctorApprovalStatus?)s.ApprovalStatus)
             .FirstOrDefaultAsync();
-    }
-    private async Task<Device> GetOrCreateDeviceAsync(int userId)
-    {
-        var http      = httpContextAccessor.HttpContext;
-        var userAgent = http?.Request.Headers["User-Agent"].ToString() ?? "unknown";
-        var ip        = http?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return await deviceRepository.GetOrCreateAsync(userId, userAgent, ip);
     }
 }

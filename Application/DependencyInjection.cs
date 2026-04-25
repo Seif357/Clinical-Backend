@@ -29,7 +29,6 @@ public static class DependencyInjection
         services.AddScoped<IContactService, ContactService>();
         services.AddScoped<IDoctorAdminService, DoctorAdminService>();
         services.AddScoped<IPasswordService, PasswordService>();
-        services.AddScoped<IDeviceService, DeviceService>();
         return services;
     }
 }
