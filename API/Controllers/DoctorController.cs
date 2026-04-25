@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Application.Dto;
+using Application.DTOs;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,4 +28,13 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
         var result = await doctorService.UpdateDoctorDataServiceAsync(id, updateDoctorDto);
         return result;
     }
+    /// <summary>
+    /// Search all approved doctors.
+    /// Available to: Patients, Doctors, Admins (and anonymous if you want — remove [Authorize]).
+    /// </summary>
+    [HttpGet("DoctorSearch")]
+    [Authorize]
+    [ProducesResponseType(typeof(Result), 200)]
+    public async Task<IActionResult> GetDoctors([FromQuery] DoctorSearchQuery query)
+        => Ok(await doctorService.SearchDoctorsAsync(query));
 }
