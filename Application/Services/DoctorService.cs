@@ -84,4 +84,81 @@ public class DoctorService(AppDbContext context,
 
         return new Result { Success = true, Message = "Doctor profile updated successfully" };
     }
+    
+    public async Task<Result> SearchDoctorsAsync(DoctorSearchQuery q)
+    {
+        var query = context.Doctors
+            .Include(d => d.DoctorData)
+            .Where(d => !d.IsDeleted && d.ApprovalStatus == DoctorApprovalStatus.Approved)
+            .AsQueryable();
+ 
+        // ── Search ────────────────────────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(q.Search))
+        {
+            var term = q.Search.Trim().ToLower();
+            query = query.Where(d =>
+                d.DoctorData.UserName!.ToLower().Contains(term) ||
+                d.DoctorData.Email!.ToLower().Contains(term)    ||
+                d.IssuingAuthority.ToLower().Contains(term));
+        }
+ 
+        // ── Filters ───────────────────────────────────────────────────────────
+        if (q.IsLicenseVerified.HasValue)
+            query = query.Where(d => d.IsLicenseVerified == q.IsLicenseVerified.Value);
+ 
+        if (q.HasSchedule.HasValue)
+        {
+            var doctorIdsWithSchedule = context.Schedules
+                .Where(s => !s.IsDeleted)
+                .Select(s => s.DoctorId);
+ 
+            query = q.HasSchedule.Value
+                ? query.Where(d => doctorIdsWithSchedule.Contains(d.UserId))
+                : query.Where(d => !doctorIdsWithSchedule.Contains(d.UserId));
+        }
+ 
+        // ── Sort ──────────────────────────────────────────────────────────────
+        query = (q.SortBy?.ToLower(), q.Descending) switch
+        {
+            ("name",         false) => query.OrderBy(d => d.DoctorData.UserName),
+            ("name",         true)  => query.OrderByDescending(d => d.DoctorData.UserName),
+            ("registeredat", true)  => query.OrderByDescending(d => d.CreatedAt),
+            _                       => query.OrderBy(d => d.CreatedAt)
+        };
+ 
+        // ── Paginate ──────────────────────────────────────────────────────────
+        var pageSize = Math.Clamp(q.PageSize, 1, 100);
+        var page     = Math.Max(q.Page, 1);
+        var total    = await query.CountAsync();
+ 
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(d => new DoctorSummaryDto
+            {
+                UserId                      = d.UserId,
+                UserName                    = d.DoctorData.UserName ?? string.Empty,
+                Email                       = d.DoctorData.Email    ?? string.Empty,
+                ImagePath                   = d.ImagePath,
+                ProfessionalPracticeLicense = d.ProfessionalPracticeLicense,
+                IssuingAuthority            = d.IssuingAuthority,
+                LicenseExpirationDate       = d.LicenseExpirationDate,
+                IsLicenseVerified           = d.IsLicenseVerified,
+                ApprovalStatus              = d.ApprovalStatus.ToString(),
+                RegisteredAt                = d.CreatedAt
+            })
+            .ToListAsync();
+ 
+        return new Result
+        {
+            Success = true,
+            Data    = new PagedResponse<DoctorSummaryDto>
+            {
+                Total    = total,
+                Page     = page,
+                PageSize = pageSize,
+                Items    = items
+            }
+        };
+    }
 }
