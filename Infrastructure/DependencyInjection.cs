@@ -39,7 +39,6 @@ public static class DependencyInjection
         });
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
         services.Configure<TwilioSettings>(configuration.GetSection(TwilioSettings.SectionName));
-        services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IFileStorageService, FileStorageService>();

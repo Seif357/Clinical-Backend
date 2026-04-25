@@ -19,5 +19,4 @@ public class RefreshToken
     public bool IsActive => !IsRevoked && !IsExpired;
 
     public AppUser User { get; set; } = null!;
-    public Device? Device { get; set; }
 }

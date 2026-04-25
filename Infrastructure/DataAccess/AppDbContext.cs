@@ -35,7 +35,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModelOutput> ModelOutputs { get; set; }
     public DbSet<Schedule> Schedules { get; set; }
     public DbSet<ScheduleSlot> ScheduleSlots { get; set; }
-    public DbSet<Device> Devices { get; set; }
     public DbSet<UserEmail> UserEmails { get; set; }
     public DbSet<UserPhone> UserPhones { get; set; }
     public DbSet<OtpRecord> OtpRecords { get; set; }
@@ -60,21 +59,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             .WithMany()
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.NoAction);
-
-        builder.Entity<RefreshToken>()
-            .HasOne(rt => rt.Device)
-            .WithMany(d => d.RefreshTokens)
-            .HasForeignKey(rt => rt.DeviceId)
-            .OnDelete(DeleteBehavior.NoAction);
-
-        builder.Entity<Device>()
-            .HasOne(d => d.User)
-            .WithMany()
-            .HasForeignKey(d => d.UserId)
-            .OnDelete(DeleteBehavior.NoAction);
-
-        builder.Entity<Device>()
-            .HasIndex(d => d.UserId);
 
         builder.Entity<UserEmail>()
             .HasOne(ue => ue.User)
