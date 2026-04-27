@@ -35,6 +35,10 @@ public class RefreshTokenRepositoryTests
         var context = GetInMemoryDbContext();
         var sut = new RefreshTokenRepository(context);
 
+        var dummyUser = new AppUser { Id = 1, UserName = "test1" };
+        await context.Set<AppUser>().AddAsync(dummyUser);
+        await context.SaveChangesAsync();
+
         var refreshToken = new RefreshToken
         {
             Token = "test-token-123",
@@ -72,6 +76,9 @@ public class RefreshTokenRepositoryTests
         var context = GetInMemoryDbContext();
         var sut = new RefreshTokenRepository(context);
 
+        var dummyUser = new AppUser { Id = 1, UserName = "test1" };
+        await context.Set<AppUser>().AddAsync(dummyUser);
+
         var refreshToken = new RefreshToken
         {
             Token = "update-token",
@@ -101,6 +108,9 @@ public class RefreshTokenRepositoryTests
         var context = GetInMemoryDbContext();
         var sut = new RefreshTokenRepository(context);
 
+        var dummyUser = new AppUser { Id = 1, UserName = "test1" };
+        await context.Set<AppUser>().AddAsync(dummyUser);
+
         var tokenString = "existing-token";
         await context.RefreshTokens.AddAsync(new RefreshToken { Token = tokenString, UserId = 1 });
         await context.SaveChangesAsync();
@@ -120,22 +130,28 @@ public class RefreshTokenRepositoryTests
         // Arrange
         var context = GetInMemoryDbContext();
         var sut = new RefreshTokenRepository(context);
-        var userId = 1;
+        var userId1 = 1;
+        var userId2 = 2;
         var now = DateTime.UtcNow;
+
+        await context.Set<AppUser>().AddRangeAsync(
+        new AppUser { Id = userId1, UserName = "test1" },
+        new AppUser { Id = userId2, UserName = "test2" }
+        );
 
         var tokens = new[]
         {
-            new RefreshToken { Token = "active-1", UserId = userId, RevokedAt = null, ExpiresAt = now.AddDays(1) },
-            new RefreshToken { Token = "expired", UserId = userId, RevokedAt = null, ExpiresAt = now.AddDays(-1) },
-            new RefreshToken { Token = "revoked", UserId = userId, RevokedAt = now, ExpiresAt = now.AddDays(1) },
-            new RefreshToken { Token = "other-user", UserId = 2, RevokedAt = null, ExpiresAt = now.AddDays(1) }
+            new RefreshToken { Token = "active-1", UserId = userId1, RevokedAt = null, ExpiresAt = now.AddDays(1) },
+            new RefreshToken { Token = "expired", UserId = userId1, RevokedAt = null, ExpiresAt = now.AddDays(-1) },
+            new RefreshToken { Token = "revoked", UserId = userId1, RevokedAt = now, ExpiresAt = now.AddDays(1) },
+            new RefreshToken { Token = "other-user", UserId = userId2, RevokedAt = null, ExpiresAt = now.AddDays(1) }
         };
 
         await context.RefreshTokens.AddRangeAsync(tokens);
         await context.SaveChangesAsync();
 
         // Act
-        var result = await sut.GetActiveTokensByUserIdAsync(userId);
+        var result = await sut.GetActiveTokensByUserIdAsync(userId1);
 
         // Assert
         result.Should().NotBeNull();
