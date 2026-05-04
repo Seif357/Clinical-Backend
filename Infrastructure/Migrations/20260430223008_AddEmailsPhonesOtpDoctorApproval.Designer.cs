@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260423163029_AddDevicesEmailsPhonesOtpDoctorApproval")]
-    partial class AddDevicesEmailsPhonesOtpDoctorApproval
+    [Migration("20260430223008_AddEmailsPhonesOtpDoctorApproval")]
+    partial class AddEmailsPhonesOtpDoctorApproval
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -196,50 +196,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Models.Auth.Device", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeviceName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("IpAddress")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("LastSeenAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("RowVersion")
-                        .HasColumnType("decimal(20,0)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserAgent")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Devices");
-                });
-
             modelBuilder.Entity("Domain.Models.Auth.OtpRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -329,8 +285,6 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId");
-
-                    b.HasIndex("DeviceId");
 
                     b.HasIndex("UserId");
 
@@ -1304,17 +1258,6 @@ namespace Infrastructure.Migrations
                     b.Navigation("Input");
                 });
 
-            modelBuilder.Entity("Domain.Models.Auth.Device", b =>
-                {
-                    b.HasOne("Domain.Models.Auth.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Domain.Models.Auth.OtpRecord", b =>
                 {
                     b.HasOne("Domain.Models.Auth.AppUser", "User")
@@ -1332,18 +1275,11 @@ namespace Infrastructure.Migrations
                         .WithMany("RefreshTokens")
                         .HasForeignKey("AppUserId");
 
-                    b.HasOne("Domain.Models.Auth.Device", "Device")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("DeviceId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("Domain.Models.Auth.AppUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.Navigation("Device");
 
                     b.Navigation("User");
                 });
@@ -1536,11 +1472,6 @@ namespace Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Domain.Models.Auth.AppUser", b =>
-                {
-                    b.Navigation("RefreshTokens");
-                });
-
-            modelBuilder.Entity("Domain.Models.Auth.Device", b =>
                 {
                     b.Navigation("RefreshTokens");
                 });

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDevicesEmailsPhonesOtpDoctorApproval : Migration
+    public partial class AddEmailsPhonesOtpDoctorApproval : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -79,32 +79,6 @@ namespace Infrastructure.Migrations
                 type: "datetime2",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
-
-            migrationBuilder.CreateTable(
-                name: "Devices",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    UserAgent = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IpAddress = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DeviceName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    LastSeenAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    RowVersion = table.Column<decimal>(type: "decimal(20,0)", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Devices", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Devices_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                });
 
             migrationBuilder.CreateTable(
                 name: "OtpRecords",
@@ -191,19 +165,9 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RefreshTokens_DeviceId",
-                table: "RefreshTokens",
-                column: "DeviceId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Doctors_ApprovalStatus",
                 table: "Doctors",
                 column: "ApprovalStatus");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Devices_UserId",
-                table: "Devices",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OtpRecords_UserId_Purpose_IsUsed",
@@ -231,9 +195,7 @@ namespace Infrastructure.Migrations
                 name: "IX_UserPhones_UserId_IsPrimary",
                 table: "UserPhones",
                 columns: new[] { "UserId", "IsPrimary" });
-            
-            migrationBuilder.Sql("UPDATE RefreshTokens SET DeviceId = NULL;");
-            
+
             migrationBuilder.AddForeignKey(
                 name: "FK_ModelOutputs_ModelInputs_ModelInputId",
                 table: "ModelOutputs",
@@ -246,13 +208,6 @@ namespace Infrastructure.Migrations
                 table: "RefreshTokens",
                 column: "UserId",
                 principalTable: "AspNetUsers",
-                principalColumn: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_RefreshTokens_Devices_DeviceId",
-                table: "RefreshTokens",
-                column: "DeviceId",
-                principalTable: "Devices",
                 principalColumn: "Id");
         }
 
@@ -267,13 +222,6 @@ namespace Infrastructure.Migrations
                 name: "FK_RefreshTokens_AspNetUsers_UserId",
                 table: "RefreshTokens");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_RefreshTokens_Devices_DeviceId",
-                table: "RefreshTokens");
-
-            migrationBuilder.DropTable(
-                name: "Devices");
-
             migrationBuilder.DropTable(
                 name: "OtpRecords");
 
@@ -282,10 +230,6 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserPhones");
-
-            migrationBuilder.DropIndex(
-                name: "IX_RefreshTokens_DeviceId",
-                table: "RefreshTokens");
 
             migrationBuilder.DropIndex(
                 name: "IX_Doctors_ApprovalStatus",
