@@ -87,7 +87,7 @@ public class AIController : ControllerBase
     }
 
     /// Get all images for a specific patient
-    [HttpGet("patient/{patientId:int}")]
+    [HttpGet("patient/{PatientId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetImagesByPatientId(int patientId)
     {
