@@ -28,7 +28,7 @@ public class PatientService(AppDbContext context,
             .Include(p => p.MedicalRecord)
             .ThenInclude(m => m.TestsTaken)
             .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.PrescribedMedications)
+            .ThenInclude(m => m.Medications)
             .Include(p => p.MedicalRecord)
             .ThenInclude(m => m.FamilyConditions)
             .FirstOrDefaultAsync(p => p.UserId.ToString() == userId && !p.IsDeleted);
