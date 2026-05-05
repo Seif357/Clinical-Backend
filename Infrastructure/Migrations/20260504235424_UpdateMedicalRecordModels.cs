@@ -30,7 +30,7 @@ namespace Infrastructure.Migrations
                 name: "FamilyConditions");
 
             migrationBuilder.DropTable(
-                name: "PrescribedMedications");
+                name: "Medications");
 
             migrationBuilder.DropTable(
                 name: "Surgeries");
@@ -644,7 +644,7 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PrescribedMedications",
+                name: "Medications",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -747,7 +747,7 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_PrescribedMedications_MedicalRecordId",
-                table: "PrescribedMedications",
+                table: "Medications",
                 column: "MedicalRecordId");
 
             migrationBuilder.CreateIndex(
