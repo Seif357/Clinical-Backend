@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Surgery> Surgeries { get; set; }
     public DbSet<TestTaken> TestsTaken { get; set; }
     public DbSet<Visit> Visits { get; set; }
+    public DbSet<ReviewableEntry> ReviewableEntries { get; set; }
     public DbSet<DoctorRequest> DoctorRequests { get; set; }
     public DbSet<DoctorResponse> DoctorResponses { get; set; }
     public DbSet<DoctorReqestImage> DoctorReqestImages { get; set; }
