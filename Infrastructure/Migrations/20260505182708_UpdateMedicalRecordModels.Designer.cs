@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260505140113_UpdateMedicationModels")]
-    partial class UpdateMedicationModels
+    [Migration("20260505182708_UpdateMedicalRecordModels")]
+    partial class UpdateMedicalRecordModels
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -754,7 +754,7 @@ namespace Infrastructure.Migrations
                     b.ToTable("MedicalRecords");
                 });
 
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.ReviewableEntry", b =>
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -765,13 +765,76 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Discriminator")
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("nvarchar(21)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reaction")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalRecordId");
+
+                    b.ToTable("Allergies");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DiagnosisDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Relative")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ReviewNote")
                         .HasColumnType("nvarchar(max)");
@@ -793,11 +856,256 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReviewableEntries");
+                    b.HasIndex("MedicalRecordId");
 
-                    b.HasDiscriminator().HasValue("ReviewableEntry");
+                    b.ToTable("FamilyConditions");
+                });
 
-                    b.UseTphMappingStrategy();
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DaysOfWeek")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DoctorRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Dosage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PrescribedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReminderTimes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalRecordId");
+
+                    b.ToTable("Medications");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalRecordId");
+
+                    b.ToTable("Surgeries");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalRecordId");
+
+                    b.ToTable("TestsTaken");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Diagnosis")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DoctorName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MedicalRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReasonForVisit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RowVersion")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Treatment_Plan")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalRecordId");
+
+                    b.ToTable("Visits");
                 });
 
             modelBuilder.Entity("Domain.Models.Patient", b =>
@@ -1050,228 +1358,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<int?>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Reaction")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Severity")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.ToTable("ReviewableEntries", t =>
-                        {
-                            t.Property("MedicalRecordId")
-                                .HasColumnName("Allergy_MedicalRecordId");
-
-                            t.Property("Name")
-                                .HasColumnName("Allergy_Name");
-                        });
-
-                    b.HasDiscriminator().HasValue("Allergy");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<DateTime>("DiagnosisDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Relative")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.ToTable("ReviewableEntries", t =>
-                        {
-                            t.Property("MedicalRecordId")
-                                .HasColumnName("FamilyCondition_MedicalRecordId");
-
-                            t.Property("Name")
-                                .HasColumnName("FamilyCondition_Name");
-                        });
-
-                    b.HasDiscriminator().HasValue("FamilyCondition");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<string>("DaysOfWeek")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("DoctorRequestId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Dosage")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Frequency")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("PrescribedByDoctorId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReminderTimes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Source")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.HasDiscriminator().HasValue("Medication");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Outcome")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.ToTable("ReviewableEntries", t =>
-                        {
-                            t.Property("MedicalRecordId")
-                                .HasColumnName("Surgery_MedicalRecordId");
-
-                            t.Property("Name")
-                                .HasColumnName("Surgery_Name");
-                        });
-
-                    b.HasDiscriminator().HasValue("Surgery");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Result")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.ToTable("ReviewableEntries", t =>
-                        {
-                            t.Property("Date")
-                                .HasColumnName("TestTaken_Date");
-
-                            t.Property("MedicalRecordId")
-                                .HasColumnName("TestTaken_MedicalRecordId");
-
-                            t.Property("Name")
-                                .HasColumnName("TestTaken_Name");
-                        });
-
-                    b.HasDiscriminator().HasValue("TestTaken");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
-                {
-                    b.HasBaseType("Domain.Models.MedicalRecordAttributes.ReviewableEntry");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Diagnosis")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DoctorName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("MedicalRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReasonForVisit")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Treatment_Plan")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasIndex("MedicalRecordId");
-
-                    b.ToTable("ReviewableEntries", t =>
-                        {
-                            t.Property("Date")
-                                .HasColumnName("Visit_Date");
-
-                            t.Property("MedicalRecordId")
-                                .HasColumnName("Visit_MedicalRecordId");
-                        });
-
-                    b.HasDiscriminator().HasValue("Visit");
-                });
-
             modelBuilder.Entity("Domain.Models.AI.ModelOutput", b =>
                 {
                     b.HasOne("Domain.Models.AI.ModelInput", "Input")
@@ -1378,6 +1464,52 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", null)
+                        .WithMany("Allergies")
+                        .HasForeignKey("MedicalRecordId");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", null)
+                        .WithMany("FamilyConditions")
+                        .HasForeignKey("MedicalRecordId");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", "MedicalRecord")
+                        .WithMany("Medications")
+                        .HasForeignKey("MedicalRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MedicalRecord");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", null)
+                        .WithMany("Surgeries")
+                        .HasForeignKey("MedicalRecordId");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", null)
+                        .WithMany("TestsTaken")
+                        .HasForeignKey("MedicalRecordId");
+                });
+
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
+                {
+                    b.HasOne("Domain.Models.MedicalRecord", null)
+                        .WithMany("Visits")
+                        .HasForeignKey("MedicalRecordId");
+                });
+
             modelBuilder.Entity("Domain.Models.Patient", b =>
                 {
                     b.HasOne("Domain.Models.Auth.AppUser", "PatientData")
@@ -1467,52 +1599,6 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Allergy", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("Allergies")
-                        .HasForeignKey("MedicalRecordId");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.FamilyCondition", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("FamilyConditions")
-                        .HasForeignKey("MedicalRecordId");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", "MedicalRecord")
-                        .WithMany("Medications")
-                        .HasForeignKey("MedicalRecordId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MedicalRecord");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("Surgeries")
-                        .HasForeignKey("MedicalRecordId");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.TestTaken", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("TestsTaken")
-                        .HasForeignKey("MedicalRecordId");
-                });
-
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Visit", b =>
-                {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("Visits")
-                        .HasForeignKey("MedicalRecordId");
                 });
 
             modelBuilder.Entity("Domain.Models.AI.ModelInput", b =>
