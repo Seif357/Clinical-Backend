@@ -3,6 +3,7 @@ using API.Middleware;
 using API.Services;
 using Application;
 using Application.Interfaces;
+using Infrastructure.Configurations;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -53,6 +54,7 @@ public static class Program
             builder.Services.AddInfrastructureAsync(builder.Configuration, builder.Environment);
             builder.Services.AddApplication(builder.Configuration);
             builder.Services.AddOpenApi();
+            builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuthSettings"));
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
