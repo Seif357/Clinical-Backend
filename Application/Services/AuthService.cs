@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
-using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.ExtentionMethods;
@@ -16,7 +15,6 @@ using Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -309,13 +307,137 @@ public class AuthService(
         await context.SaveChangesAsync();
         return new Result { Success = true, Message = "Account deleted successfully" };
     }
-    /// <summary>
-    /// Validates a Google id_token issued to the client, then finds-or-creates
-    /// an AppUser + Patient/Doctor row and returns our own JWT pair.
-    /// </summary>
-    public async Task<AuthResult> GoogleLoginServiceAsync(GoogleLoginDto dto)
+    public async Task<GoogleLoginResult> GoogleLoginServiceAsync(GoogleLoginDto dto)
     {
         // 1. Validate the Google id_token server-side
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            var settings = new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleAuthSettings.Value.ClientId }
+            };
+            payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
+        }
+        catch (InvalidJwtException)
+        {
+            return new GoogleLoginResult { Message = AuthConstants.Messages.GoogleAuthFailed };
+        }
+
+        var email = payload.Email;
+
+        // 2. Find existing user by email
+        var existingUser = await userManager.FindByEmailAsync(email);
+
+        if (existingUser != null)
+        {
+            if (existingUser.IsDeleted)
+                return new GoogleLoginResult { Message = "User is deleted" };
+
+            var roles = await userManager.GetRolesAsync(existingUser);
+            if (roles.Contains(Role.Doctor.ToString()))
+            {
+                var status = await GetDoctorApprovalStatusAsync(existingUser);
+                if (status == DoctorApprovalStatus.Pending)
+                    return new GoogleLoginResult { Success = false, Message = AuthConstants.Messages.StatusPending };
+                if (status == DoctorApprovalStatus.Rejected)
+                    return new GoogleLoginResult { Success = false, Message = AuthConstants.Messages.StatusRejected };
+            }
+
+            var authResult = await BuildAuthResultAsync(existingUser);
+            return new GoogleLoginResult
+            {
+                Success                = authResult.Success,
+                Message                = authResult.Message,
+                AccessToken            = authResult.AccessToken,
+                AccessTokenExpiration  = authResult.AccessTokenExpiration,
+                RefreshToken           = authResult.RefreshToken,
+                RefreshTokenExpiration = authResult.RefreshTokenExpiration
+            };
+        }
+
+        // 3. New user — if they want to be a Doctor we can't complete registration yet
+        if (dto.IsDoctor)
+        {
+            return new GoogleLoginResult
+            {
+                Success              = false,
+                RequiresRegistration = true,
+                Message              = "Doctor registration requires additional information. Please provide your Professional Practice License and Issuing Authority."
+            };
+        }
+
+        // 4. New Patient — auto-register and log in immediately
+        var username = await GenerateUniqueUsernameAsync(payload.Name ?? email.Split('@')[0]);
+
+        var newUser = new AppUser
+        {
+            UserName       = username,
+            Email          = email,
+            EmailConfirmed = true,
+            CreatedAt      = DateTime.UtcNow,
+            UpdatedAt      = DateTime.UtcNow
+        };
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var creationResult = await userManager.CreateAsync(newUser);
+            if (!creationResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new GoogleLoginResult
+                {
+                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                };
+            }
+
+            await context.Patients.AddAsync(new Patient { UserId = newUser.Id });
+            await context.SaveChangesAsync();
+
+            var roleResult = await userManager.AddToRoleAsync(newUser, "Patient");
+            if (!roleResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new GoogleLoginResult { Message = "Failed to assign role to new user" };
+            }
+
+            await context.UserEmails.AddAsync(new UserEmail
+            {
+                UserId     = newUser.Id,
+                Email      = email.ToLowerInvariant(),
+                IsPrimary  = true,
+                IsVerified = true,
+                CreatedAt  = DateTime.UtcNow
+            });
+
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            var authResult = await BuildAuthResultAsync(newUser);
+            return new GoogleLoginResult
+            {
+                Success                = authResult.Success,
+                Message                = authResult.Message,
+                AccessToken            = authResult.AccessToken,
+                AccessTokenExpiration  = authResult.AccessTokenExpiration,
+                RefreshToken           = authResult.RefreshToken,
+                RefreshTokenExpiration = authResult.RefreshTokenExpiration
+            };
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return new GoogleLoginResult { Message = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Completes Google Doctor registration after the client has collected license fields.
+    /// The same id_token from the initial /google-login call is re-validated here.
+    /// </summary>
+    public async Task<AuthResult> GoogleRegisterDoctorAsync(GoogleRegisterDoctorDto dto)
+    {
         GoogleJsonWebSignature.Payload payload;
         try
         {
@@ -332,47 +454,25 @@ public class AuthService(
 
         var email = payload.Email;
 
-        // 2. Find existing user by email (handles both Google-first and password-first accounts)
+        // 2. Guard: account must not already exist
         var existingUser = await userManager.FindByEmailAsync(email);
-
         if (existingUser != null)
-        {
-            // --- Existing user: log them in ---
-            if (existingUser.IsDeleted)
-                return new AuthResult { Message = "User is deleted" };
+            return new AuthResult { Success = false, Message = "An account with this Google address already exists. Please use the login endpoint." };
 
-            return await BuildAuthResultAsync(existingUser);
-        }
-
-        // 3. New user — validate Doctor-specific fields before creating
-        if (dto.IsDoctor)
-        {
-            if (string.IsNullOrWhiteSpace(dto.ProfessionalPracticeLicense) ||
-                string.IsNullOrWhiteSpace(dto.IssuingAuthority))
-            {
-                return new AuthResult
-                {
-                    Message = "Professional Practice License and Issuing Authority are required for doctor registration"
-                };
-            }
-        }
-
-        // 4. Auto-generate a unique username from the Google display name
         var username = await GenerateUniqueUsernameAsync(payload.Name ?? email.Split('@')[0]);
 
         var newUser = new AppUser
         {
-            UserName = username,
-            Email = email,
-            EmailConfirmed = true,  // Google has already verified the email
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UserName       = username,
+            Email          = email,
+            EmailConfirmed = true,
+            CreatedAt      = DateTime.UtcNow,
+            UpdatedAt      = DateTime.UtcNow
         };
 
-        using var transaction = await context.Database.BeginTransactionAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
-            // Create the identity user without a password
             var creationResult = await userManager.CreateAsync(newUser);
             if (!creationResult.Succeeded)
             {
@@ -383,34 +483,34 @@ public class AuthService(
                 };
             }
 
-            string role;
-            if (!dto.IsDoctor)
+            await context.Doctors.AddAsync(new Doctor
             {
-                role = "Patient";
-                await context.Patients.AddAsync(new Patient { UserId = newUser.Id });
-            }
-            else
-            {
-                role = "Doctor";
-                await context.Doctors.AddAsync(new Doctor
-                {
-                    UserId = newUser.Id,
-                    ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense!,
-                    IssuingAuthority = dto.IssuingAuthority!
-                });
-            }
-
+                UserId                      = newUser.Id,
+                ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense,
+                IssuingAuthority            = dto.IssuingAuthority
+            });
             await context.SaveChangesAsync();
 
-            var roleResult = await userManager.AddToRoleAsync(newUser, role);
+            var roleResult = await userManager.AddToRoleAsync(newUser, "Doctor");
             if (!roleResult.Succeeded)
             {
                 await transaction.RollbackAsync();
                 return new AuthResult { Message = "Failed to assign role to new user" };
             }
 
+            await context.UserEmails.AddAsync(new UserEmail
+            {
+                UserId     = newUser.Id,
+                Email      = email.ToLowerInvariant(),
+                IsPrimary  = true,
+                IsVerified = true,
+                CreatedAt  = DateTime.UtcNow
+            });
+
+            await context.SaveChangesAsync();
             await transaction.CommitAsync();
-            return await BuildAuthResultAsync(newUser);
+
+            return new AuthResult { Success = false, Message = AuthConstants.Messages.StatusPending };
         }
         catch (Exception ex)
         {
@@ -475,12 +575,15 @@ public class AuthService(
         claims.AddRange(userClaims);
         return claims;
     }
-    /// <summary>Generates JWT + refresh token for an already-verified user.</summary>
     private async Task<AuthResult> BuildAuthResultAsync(AppUser user)
     {
         var claims = await GenerateUserClaimsAsync(user);
         var accessToken = jwtTokenService.GenerateAccessToken(claims);
         var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+
+        await refreshTokenRepository.AddAsync(refreshToken);
+        await context.SaveChangesAsync();
+
         return new AuthResult
         {
             Success = true,
@@ -490,13 +593,9 @@ public class AuthService(
             RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
         };
     }
-    /// <summary>
-    /// Derives a URL-safe username from a display name and appends a random
-    /// numeric suffix until a unique one is found.
-    /// </summary>
+
     private async Task<string> GenerateUniqueUsernameAsync(string displayName)
     {
-        // Replace spaces/special chars with dots, lowercase
         var baseUsername = Regex.Replace(displayName.ToLowerInvariant(), @"[^a-z0-9._+\-]", ".");
         baseUsername = Regex.Replace(baseUsername, @"\.{2,}", ".").Trim('.');
         if (string.IsNullOrEmpty(baseUsername)) baseUsername = "user";
