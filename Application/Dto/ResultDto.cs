@@ -23,10 +23,11 @@ public class Result : IActionResult
         response.StatusCode = Success ? 200 : 400;
 
         var payload = new { Success, Message, Data };
-
-        await response.WriteAsync(JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        var options = new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }));
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+        };
+        await response.WriteAsync(JsonSerializer.Serialize(payload, options));
     }
 }

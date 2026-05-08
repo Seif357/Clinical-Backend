@@ -20,7 +20,7 @@ public class PatientController(IPatientService patientService) : ControllerBase
 
     [HttpPut]
     [Authorize]
-    public async Task<IActionResult> UpdatePatientData(UpdatePatientDto  updatePatientDto)
+    public async Task<IActionResult> UpdatePatientData([FromForm]UpdatePatientDto  updatePatientDto)
     {
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var result = await patientService.UpdatePatientDataServiceAsync(id, updatePatientDto);

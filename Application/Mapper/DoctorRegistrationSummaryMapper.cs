@@ -9,7 +9,7 @@ namespace Application.Mapper;
 public static class DoctorRegistrationSummaryMapper
 {
 
-    public static DoctorRegistrationSummaryDto ToDto(this Doctor d)
+    public static DoctorRegistrationSummaryDto ToSummaryDtoDto(this Doctor d)
     {
         return new DoctorRegistrationSummaryDto()
         {

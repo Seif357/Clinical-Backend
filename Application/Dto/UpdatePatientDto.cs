@@ -1,7 +1,9 @@
-﻿namespace Application.Dto;
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Application.Dto;
 
 public record UpdatePatientDto(
-    string? ImagePath,
+    IFormFile? Image,
     string? UserName,
     string? Email,
     string? PhoneNumber,

@@ -48,7 +48,11 @@ public static class Program
             // Add Serilog to the logging pipeline
             builder.Host.UseSerilog();
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+                });
             builder.Services.AddSignalR();
             builder.Services.AddScoped<INotificationService, NotificationService>(); 
             builder.Services.AddInfrastructureAsync(builder.Configuration, builder.Environment);

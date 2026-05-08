@@ -1,18 +1,21 @@
+using Application.Dto.MedicalRecord;
+using Domain.Models;
+using Domain.Models.Auth;
+
 namespace Application.Dto;
 
-public class PatientDto
-{
-    //"dateOfBirth": "2026-05-05",
-    //  "gender": 1,
-    //  "bloodType": 3,
-    // "medicalRecord": null,
-    //    "userName": "patient",
-    //    "email": "patient@gmail.com",
-    //    "phoneNumber": "01022003571",
-    //  "imagePath": null,
-    //  "createdAt": "2026-05-05T21:54:01.5955172",
-    //  "userId": 3,
-    //    "phoneNumberConfirmed": false,
-//    "emailConfirmed": true,
-
-}
+public record PatientDto(
+    int UserId,
+    string UserName,
+    string Email,
+    string? PhoneNumber,
+    bool EmailConfirmed,
+    bool PhoneNumberConfirmed,
+    string? ImagePath,
+    Gender Gender,
+    BloodType? BloodType,
+    DateOnly? DateOfBirth,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    MedicalRecordDto? MedicalRecord
+);

@@ -2,9 +2,11 @@ using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.Interfaces;
+using Application.Mapper;
 using Domain.Models;
 using Domain.Models.Auth;
 using Infrastructure.DataAccess;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Application.Services;
 
 public class DoctorService(AppDbContext context,
-    UserManager<AppUser> userManager) : IDoctorService
+    UserManager<AppUser> userManager,
+    IFileStorageService fileStorage) : IDoctorService
 {
     public async Task<IActionResult> GetDoctorDataServiceAsync(string userId)
     {
@@ -24,7 +27,7 @@ public class DoctorService(AppDbContext context,
         if (doctor is null)
             return new Result { Success = false, Message = "Doctor not found" };
 
-        return new Result<Doctor> { Success = true, Data = doctor };
+        return new Result<DoctorDto> { Success = true, Data = doctor.ToDto() };
     }
 
     public async Task<IActionResult> UpdateDoctorDataServiceAsync(string userId, UpdateDoctorDto dto)
@@ -68,9 +71,13 @@ public class DoctorService(AppDbContext context,
                 };
         }
 
-        if (dto.ImagePath is not null)
-            doctor.ImagePath = dto.ImagePath;
-
+        if (dto.Image is not null)
+        {
+            var oldPath = doctor.ImagePath;
+            doctor.ImagePath = await fileStorage.SaveFileAsync(dto.Image, "profiles");
+            if (oldPath is not null)
+                await fileStorage.DeleteFileAsync(oldPath);
+        }
         if (!string.IsNullOrEmpty(dto.ProfessionalPracticeLicense))
             doctor.ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense;
 
