@@ -106,5 +106,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
         builder.Entity<ModelInput>()
             .HasIndex(mi => mi.UploadedAt);
+        builder.Entity<Schedule>()
+            .HasOne(s => s.Doctor)
+            .WithMany()
+            .HasForeignKey(s => s.DoctorId)
+            .OnDelete(DeleteBehavior.NoAction);
+ 
+        builder.Entity<ScheduleSlot>()
+            .HasOne(ss => ss.Schedule)
+            .WithMany(s => s.ScheduleSlots)
+            .HasForeignKey(ss => ss.ScheduleId)
+            .OnDelete(DeleteBehavior.Cascade);
+ 
+        builder.Entity<ScheduleSlot>()
+            .HasOne(ss => ss.Patient)
+            .WithMany()
+            .HasForeignKey(ss => ss.PatientId)
+            .OnDelete(DeleteBehavior.NoAction);
+ 
+        builder.Entity<ScheduleSlot>()
+            .HasIndex(ss => new { ss.ScheduleId, ss.StartTime });
+ 
+        builder.Entity<ScheduleSlot>()
+            .HasIndex(ss => new { ss.PatientId, ss.Status });
     }
 }
