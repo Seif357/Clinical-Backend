@@ -31,11 +31,9 @@ public class ImageProcessingService : IImageProcessingService
         {
             _logger.LogInformation("Starting image upload for patient {PatientId}", dto.PatientId);
 
-            // Save file to storage
             var folder = dto.PatientId?.ToString() ?? "unassigned";
             var filePath = await _fileStorageService.SaveFileAsync(dto.Image, folder);
 
-            // Create database record
             var modelInput = new ModelInput
             {
                 HistopathologyImagePath = filePath,
@@ -53,27 +51,34 @@ public class ImageProcessingService : IImageProcessingService
             return new Result
             {
                 Success = true,
-                Message = "Image uploaded successfully"
+                Message = "Image uploaded successfully",
+                Data = new ImageUploadResponseDto
+                {
+                    Id            = modelInput.Id,
+                    FilePath      = modelInput.HistopathologyImagePath,
+                    FileName      = modelInput.OriginalFileName,
+                    FileSizeBytes = modelInput.FileSizeBytes,
+                    UploadedAt    = modelInput.UploadedAt,
+                    Status        = modelInput.Status
+                }
             };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading image for patient {PatientId}", dto.PatientId);
-            return new Result
-            {
-                Success = false,
-                Message = "Failed to upload image"
-            };
+            return new Result { Success = false, Message = "Failed to upload image" };
         }
     }
 
-    public async Task<ModelInput?> GetImageByIdAsync(int id)
+    public async Task<ModelInputDto?> GetImageByIdAsync(int id)
     {
         try
         {
-            return await _context.Set<ModelInput>()
+            var entity = await _context.Set<ModelInput>()
                 .Include(m => m.Output)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
+
+            return entity is null ? null : ToDto(entity);
         }
         catch (Exception ex)
         {
@@ -82,15 +87,17 @@ public class ImageProcessingService : IImageProcessingService
         }
     }
 
-    public async Task<IEnumerable<ModelInput>> GetImagesByPatientIdAsync(int patientId)
+    public async Task<IEnumerable<ModelInputDto>> GetImagesByPatientIdAsync(int patientId)
     {
         try
         {
-            return await _context.Set<ModelInput>()
+            var entities = await _context.Set<ModelInput>()
                 .Include(m => m.Output)
-                .Where(m => m.PatientId == patientId)
+                .Where(m => m.PatientId == patientId && !m.IsDeleted)
                 .OrderByDescending(m => m.UploadedAt)
                 .ToListAsync();
+
+            return entities.Select(ToDto);
         }
         catch (Exception ex)
         {
@@ -104,17 +111,14 @@ public class ImageProcessingService : IImageProcessingService
         try
         {
             var modelInput = await _context.Set<ModelInput>().FindAsync(id);
-            
+
             if (modelInput == null)
             {
                 _logger.LogWarning("Image with ID {Id} not found for deletion", id);
                 return false;
             }
 
-            // Delete file from storage
             await _fileStorageService.DeleteFileAsync(modelInput.HistopathologyImagePath);
-
-            // Delete database record
             _context.Set<ModelInput>().Remove(modelInput);
             await _context.SaveChangesAsync();
 
@@ -127,4 +131,23 @@ public class ImageProcessingService : IImageProcessingService
             return false;
         }
     }
+
+    // ── Mapper ────────────────────────────────────────────────────────────────
+
+    private static ModelInputDto ToDto(ModelInput m) => new(
+        Id:                      m.Id,
+        HistopathologyImagePath: m.HistopathologyImagePath,
+        OriginalFileName:        m.OriginalFileName,
+        FileSizeBytes:           m.FileSizeBytes,
+        PatientId:               m.PatientId,
+        Notes:                   m.Notes,
+        UploadedAt:              m.UploadedAt,
+        Status:                  m.Status,
+        Output: m.Output is null ? null : new ModelOutputDto(
+            ModelInputId:   m.Output.ModelInputId,
+            Classification: m.Output.Classification,
+            Confidence:     m.Output.Confidence,
+            ProcessedAt:    m.Output.ProcessedAt
+        )
+    );
 }

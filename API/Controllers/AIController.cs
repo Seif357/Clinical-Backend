@@ -16,22 +16,24 @@ public class AIController : ControllerBase
     private readonly IImageProcessingService _imageProcessingService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IValidator<UploadImageDto> _uploadValidator;
+    private readonly IAiService _aiService;
     private readonly ILogger<AIController> _logger;
 
     public AIController(
         IImageProcessingService imageProcessingService,
         IFileStorageService fileStorageService,
         IValidator<UploadImageDto> uploadValidator,
+        IAiService aiService,
         ILogger<AIController> logger)
     {
         _imageProcessingService = imageProcessingService;
         _fileStorageService = fileStorageService;
         _uploadValidator = uploadValidator;
+        _aiService = aiService;
         _logger = logger;
     }
 
 
-    /// el histopathology image file uplad
     [HttpPost("upload")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     [ProducesResponseType(typeof(ImageUploadResponseDto), StatusCodes.Status200OK)]
@@ -61,7 +63,6 @@ public class AIController : ControllerBase
     }
 
 
-    /// Get image metadata by ID
     [HttpGet("image/{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -129,8 +130,29 @@ public class AIController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while deleting the image" });
         }
     }
+    
+    [HttpPost("analyze/{imageId:int}")]
+    [ProducesResponseType(typeof(AiAnalysisResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> AnalyzeImage(int imageId)
+    {
+        _logger.LogInformation("Analyse request received for image {ImageId}", imageId);
 
-/// Download the original image file
+        var result = await _aiService.AnalyzeImageAsync(imageId);
+
+        if (!result.Success)
+        {
+            // Distinguish between "not found" and "model unreachable"
+            if (result.Message!.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new { result.Message });
+
+            return StatusCode(StatusCodes.Status502BadGateway, new { result.Message });
+        }
+
+        return Ok(result);
+    }
+
     [HttpGet("image/{id:int}/file")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

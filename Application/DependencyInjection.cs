@@ -13,6 +13,11 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
+        services.AddScoped<IAiService, AiService>();
+        services.AddHttpClient("AiModel", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddValidatorsFromAssemblyContaining<UploadImageValidator>();
