@@ -22,18 +22,6 @@ public class PatientService(AppDbContext context,
         var patient = await context.Patients
             .AsNoTracking()
             .Include(p => p.PatientData)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Allergies)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Visits)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Surgeries)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.TestsTaken)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Medications)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.FamilyConditions)
             .FirstOrDefaultAsync(p => p.UserId.ToString() == userId && !p.IsDeleted);
 
         if (patient is null)

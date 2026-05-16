@@ -5,6 +5,9 @@ using Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
+using Application.ExtentionMethods;
+using Domain.Models;
 
 namespace API.Controllers;
 
@@ -42,6 +45,18 @@ public class AIController : ControllerBase
     {
         try
         {
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (userRole.IsPatient())
+            {            
+                var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (claimValue is null || !int.TryParse(claimValue, out var patientId))
+                {
+                    _logger.LogWarning("UploadImage: could not resolve patientId from JWT claims");
+                    return Unauthorized(new { Message = "Unable to identify the requesting user." });
+                }
+                dto.PatientId = patientId;
+            }
             var validationResult = await _uploadValidator.ValidateAsync(dto);
             if (!validationResult.IsValid)
             {
@@ -51,8 +66,15 @@ public class AIController : ControllerBase
             }
 
             var result = await _imageProcessingService.UploadImageAsync(dto);
-            
-            _logger.LogInformation("Image uploaded successfully with ID {ImageId}");
+
+            if (!result.Success)
+            {
+                _logger.LogWarning("Image upload failed: {Message}", result.Message);
+                return BadRequest(new { result.Message });
+            }
+
+            var uploadedImage = result.Data as ImageUploadResponseDto;
+            _logger.LogInformation("Image uploaded successfully with ID {ImageId}", uploadedImage?.Id);
             return Ok(result);
         }
         catch (Exception ex)
@@ -88,12 +110,28 @@ public class AIController : ControllerBase
     }
 
     /// Get all images for a specific patient
-    [HttpGet("patient/{PatientId:int}")]
+    [HttpGet("patient/{patientId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetImagesByPatientId(int patientId)
     {
         try
         {
+            var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            var isPatient  = callerRole.IsPatient();
+
+            if (isPatient)
+            {
+                var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (claimValue is null || !int.TryParse(claimValue, out var callerId) || callerId != patientId)
+                {
+                    _logger.LogWarning(
+                        "Patient {CallerId} attempted to access images for patient {PatientId}",
+                        claimValue, patientId);
+                    return Forbid();
+                }
+            }
+
             var images = await _imageProcessingService.GetImagesByPatientIdAsync(patientId);
             return Ok(images);
         }
@@ -150,7 +188,7 @@ public class AIController : ControllerBase
             return StatusCode(StatusCodes.Status502BadGateway, new { result.Message });
         }
 
-        return Ok(result);
+        return Ok(result.Data);
     }
 
     [HttpGet("image/{id:int}/file")]

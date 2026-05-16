@@ -17,8 +17,7 @@ public static class PatientMapper
         BloodType:            p.BloodType,
         DateOfBirth:          p.DateOfBirth,
         CreatedAt:            p.CreatedAt,
-        UpdatedAt:            p.UpdatedAt,
-        MedicalRecord:        p.MedicalRecord?.ToDto()
-    );
+        UpdatedAt:            p.UpdatedAt
+        );
 
 }

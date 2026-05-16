@@ -67,7 +67,9 @@ public class AiService(
                 ModelInputId   = modelInput.Id,
                 Classification = prediction.Label,
                 Confidence     = prediction.Probability,
-                ProcessedAt    = now
+                ProcessedAt    = now,
+                CreatedAt      = now,
+                UpdatedAt      = now
             };
             await context.Set<ModelOutput>().AddAsync(output);
         }
