@@ -28,6 +28,7 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
         var result = await doctorService.UpdateDoctorDataServiceAsync(id, updateDoctorDto);
         return result;
     }
+
     /// <summary>
     /// Search all approved doctors.
     /// Available to: Patients, Doctors, Admins (and anonymous if you want — remove [Authorize]).
@@ -37,4 +38,13 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
     [ProducesResponseType(typeof(Result), 200)]
     public async Task<IActionResult> GetDoctors([FromQuery] DoctorSearchQuery query)
         => Ok(await doctorService.SearchDoctorsAsync(query));
+
+    [HttpGet("Patients")]
+    [Authorize]
+    public async Task<IActionResult> GetAssignedPatients()
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await doctorService.GetAssignedPatientsAsync(id);
+        return result;
+    }
 }

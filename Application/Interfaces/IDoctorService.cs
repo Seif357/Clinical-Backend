@@ -10,4 +10,5 @@ public interface IDoctorService
     Task<IActionResult> GetDoctorDataServiceAsync(string userId);
     Task<IActionResult> UpdateDoctorDataServiceAsync(string userId, UpdateDoctorDto updateDoctorDto);
     Task<Result> SearchDoctorsAsync(DoctorSearchQuery q);
+    Task<IActionResult> GetAssignedPatientsAsync(string doctorId);
 }

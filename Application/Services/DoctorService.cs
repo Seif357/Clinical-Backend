@@ -168,4 +168,70 @@ public class DoctorService(AppDbContext context,
             }
         };
     }
+
+    public async Task<IActionResult> GetAssignedPatientsAsync(string doctorId)
+    {
+        if (!int.TryParse(doctorId, out var docId))
+            return new Result { Success = false, Message = "Invalid doctor ID" };
+
+        // Find patient IDs from booked slots
+        var patientIdsFromSlots = await context.ScheduleSlots
+            .AsNoTracking()
+            .Where(ss => ss.Schedule.DoctorId == docId
+                         && ss.PatientId != null
+                         && !ss.Schedule.IsDeleted)
+            .Select(ss => ss.PatientId!.Value)
+            .ToListAsync();
+
+        // Find patient IDs from DoctorRequests
+        var patientIdsFromRequestsStrings = await context.DoctorRequests
+            .AsNoTracking()
+            .Where(dr => dr.DoctorId == doctorId && !dr.IsDeleted)
+            .Select(dr => dr.PatientId)
+            .ToListAsync();
+
+        var patientIdsFromRequests = patientIdsFromRequestsStrings
+            .Where(id => int.TryParse(id, out _))
+            .Select(int.Parse)
+            .ToList();
+
+        // Find patient IDs from PatientRequests
+        var patientIdsFromPatientRequestsStrings = await context.PatientRequests
+            .AsNoTracking()
+            .Where(pr => pr.DoctorId == doctorId && !pr.IsDeleted)
+            .Select(pr => pr.PatientId)
+            .ToListAsync();
+
+        var patientIdsFromPatientRequests = patientIdsFromPatientRequestsStrings
+            .Where(id => int.TryParse(id, out _))
+            .Select(int.Parse)
+            .ToList();
+
+        // Combine and get distinct
+        var patientIds = patientIdsFromSlots
+            .Concat(patientIdsFromRequests)
+            .Concat(patientIdsFromPatientRequests)
+            .Distinct()
+            .ToList();
+
+        if (patientIds.Count == 0)
+            return new Result { Success = true, Data = new List<PatientSummaryDto>() };
+
+        var patients = await context.Patients
+            .AsNoTracking()
+            .Include(p => p.PatientData)
+            .Where(p => patientIds.Contains(p.UserId) && !p.IsDeleted)
+            .Select(p => new PatientSummaryDto
+            {
+                UserId      = p.UserId,
+                UserName    = p.PatientData.UserName ?? string.Empty,
+                Email       = p.PatientData.Email ?? string.Empty,
+                ImagePath   = p.ImagePath,
+                DateOfBirth = p.DateOfBirth,
+                BloodType   = p.BloodType.HasValue ? p.BloodType.Value.ToString() : null
+            })
+            .ToListAsync();
+
+        return new Result { Success = true, Data = patients };
+    }
 }

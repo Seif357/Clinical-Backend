@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -141,7 +141,7 @@ namespace Infrastructure.Migrations
                 nullable: false,
                 defaultValue: 0);
             migrationBuilder.DropTable(
-                name: "Medications");
+                name: "PrescribedMedications");
             migrationBuilder.CreateTable(
                 name: "Medications",
                 columns: table => new
