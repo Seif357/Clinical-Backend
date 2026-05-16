@@ -11,5 +11,12 @@ public record MedicationDto(
     DateTime? EndDate,
     MedicalEntryStatus Status,
     string? ReviewNote,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    List<string> ReminderTimes,
+    List<int> DaysOfWeek,
+    string? Notes,
+    MedicationSource Source,
+    int? PrescribedByDoctorId,
+    int? DoctorRequestId,
+    DateTime UpdatedAt
 );

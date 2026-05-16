@@ -11,7 +11,8 @@ public interface IAuthService
     Task<AuthResult> UpdateUsernameServiceAsync(string userId, UpdateUsernameDto updateUsernameDto);
     Task<AuthResult> RefreshTokenAsync(string refreshToken); 
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
-    Task<AuthResult> GoogleLoginServiceAsync(GoogleLoginDto dto);
+    Task<GoogleLoginResult> GoogleLoginServiceAsync(GoogleLoginDto dto);
+    Task<AuthResult> GoogleRegisterDoctorAsync(GoogleRegisterDoctorDto dto);
     Task<Result> DeleteAccountService(string userId, string? userRole, string password);
 
 }

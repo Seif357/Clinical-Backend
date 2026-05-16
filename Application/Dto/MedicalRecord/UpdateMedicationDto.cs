@@ -5,5 +5,8 @@ public record UpdateMedicationDto(
     string? Dosage,
     string? Frequency,
     DateTime? StartDate,
-    DateTime? EndDate
+    DateTime? EndDate,
+    List<string>? ReminderTimes,
+    List<int>?   DaysOfWeek,
+    string? Notes
 );

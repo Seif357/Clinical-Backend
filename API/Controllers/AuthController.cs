@@ -32,8 +32,8 @@ public class AuthController(IAuthService authService,
     /// Doctors must also supply ProfessionalPracticeLicense and IssuingAuthority on first sign-up.
     /// </summary>
     [HttpPost("google-login")]
-    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(GoogleLoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GoogleLoginResult), StatusCodes.Status400BadRequest)]
     [AllowAnonymous]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
     {
@@ -50,6 +50,20 @@ public class AuthController(IAuthService authService,
         return Ok(result);
     }
 
+    /// <summary>
+    /// Completes Google Doctor registration by supplying the license details.
+    /// Call this only after POST /google-login returned RequiresRegistration = true.
+    /// On success the account is created in Pending state — the doctor must wait for admin approval.
+    /// </summary>
+    [HttpPost("google-register-doctor")]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResult), StatusCodes.Status400BadRequest)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleRegisterDoctor([FromBody] GoogleRegisterDoctorDto dto)
+    {
+        var result = await authService.GoogleRegisterDoctorAsync(dto);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
     /// <summary>
     /// Login with UserName or Email and password
     /// </summary>

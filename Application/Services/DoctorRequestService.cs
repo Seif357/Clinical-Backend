@@ -13,9 +13,9 @@ namespace Application.Services;
 public class DoctorRequestService(
     AppDbContext context,
     IFileStorageService fileStorage,
-    INotificationService notificationService) : IDoctorRequestService
+    INotificationService notificationService,
+    IMedicationService medicationService) : IDoctorRequestService
 {
-    // GET / — lightweight summary list, no images, no responses
     public async Task<IActionResult> GetAllSummaryAsync(string doctorId)
     {
         var summaries = await context.DoctorRequests
@@ -41,7 +41,6 @@ public class DoctorRequestService(
         return new Result<List<DoctorRequestSummaryDto>> { Success = true, Data = summaries };
     }
 
-    // GET /{id} — full detail with images + embedded PatientResponses + their images
     public async Task<IActionResult> GetByIdAsync(string doctorId, int requestId)
     {
         var request = await context.DoctorRequests
@@ -96,7 +95,15 @@ public class DoctorRequestService(
 
         await context.DoctorRequests.AddAsync(request);
         await context.SaveChangesAsync();
-
+        if (dto.RequestType == RequestType.Prescription && dto.Prescription is not null)
+        {
+            await medicationService.PrescribeAsync(
+                patientUserId: int.Parse(dto.PatientId),
+                doctorUserId:  int.Parse(doctorId),
+                doctorRequestId: request.Id,
+                dto: dto.Prescription);
+            await context.SaveChangesAsync();
+        }
         await notificationService.NotifyUserAsync(dto.PatientId, "NewDoctorRequest", new
         {
             request.Id,

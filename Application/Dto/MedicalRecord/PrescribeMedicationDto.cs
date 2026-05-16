@@ -1,6 +1,8 @@
+using Domain.Models.MedicalRecordAttributes;
+
 namespace Application.Dto.MedicalRecord;
 
-public record AddMedicationDto(
+public record PrescribeMedicationDto(
     string Name,
     string Dosage,
     string Frequency,

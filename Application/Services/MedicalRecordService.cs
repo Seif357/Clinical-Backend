@@ -58,7 +58,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
             .Include(r => r.Visits)
             .Include(r => r.Surgeries)
             .Include(r => r.TestsTaken)
-            .Include(r => r.PrescribedMedications)
+            .Include(r => r.Medications)
             .Include(r => r.FamilyConditions)
             .FirstOrDefaultAsync(r => r.PatientId == patientId && !r.IsDeleted);
 
@@ -85,7 +85,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
             Tests: record.TestsTaken
                 .Where(e => !e.IsDeleted && ShowEntry(e.Status, isDoctor))
                 .Select(MapTest),
-            Medications: record.PrescribedMedications
+            Medications: record.Medications
                 .Where(e => !e.IsDeleted && ShowEntry(e.Status, isDoctor))
                 .Select(MapMedication),
             FamilyConditions: record.FamilyConditions
@@ -104,7 +104,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
             .Include(r => r.Visits)
             .Include(r => r.Surgeries)
             .Include(r => r.TestsTaken)
-            .Include(r => r.PrescribedMedications)
+            .Include(r => r.Medications)
             .Include(r => r.FamilyConditions)
             .FirstOrDefaultAsync(r => r.PatientId == patientId && !r.IsDeleted);
 
@@ -124,7 +124,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
             Tests: record.TestsTaken
                 .Where(e => !e.IsDeleted && e.Status == MedicalEntryStatus.PendingReview)
                 .Select(MapTest),
-            Medications: record.PrescribedMedications
+            Medications: record.Medications
                 .Where(e => !e.IsDeleted && e.Status == MedicalEntryStatus.PendingReview)
                 .Select(MapMedication),
             FamilyConditions: record.FamilyConditions
@@ -261,7 +261,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
         var record = await GetOrCreateRecordAsync(patientId);
         if (record is null) return Fail("Patient not found.");
 
-        var entry = new PrescribedMedication
+        var entry = new Medication
         {
             MedicalRecordId   = record.Id,
             Name              = dto.Name,
@@ -274,7 +274,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
             CreatedAt         = DateTime.UtcNow
         };
 
-        context.PrescribedMedications.Add(entry);
+        context.Medications.Add(entry);
         await context.SaveChangesAsync();
 
         var statusMsg = entry.Status == MedicalEntryStatus.Approved
@@ -385,7 +385,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
 
     public async Task<Result> UpdateMedicationAsync(int entryId, int requesterId, string requesterRole, UpdateMedicationDto dto)
     {
-        var entry = await context.PrescribedMedications.FirstOrDefaultAsync(e => e.Id == entryId && !e.IsDeleted);
+        var entry = await context.Medications.FirstOrDefaultAsync(e => e.Id == entryId && !e.IsDeleted);
         if (entry is null) return Fail("Medication entry not found.");
 
         if (!CanUpdate(entry.SubmittedByUserId, entry.Status, requesterId, requesterRole))
@@ -465,7 +465,7 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
 
     public async Task<Result> ReviewMedicationAsync(int entryId, int doctorId, ReviewEntryDto dto)
     {
-        var entry = await context.PrescribedMedications.FirstOrDefaultAsync(e => e.Id == entryId && !e.IsDeleted);
+        var entry = await context.Medications.FirstOrDefaultAsync(e => e.Id == entryId && !e.IsDeleted);
         if (entry is null) return Fail("Medication entry not found.");
         if (entry.Status != MedicalEntryStatus.PendingReview) return Fail("This entry is not pending review.");
 
@@ -505,8 +505,8 @@ public class MedicalRecordService(AppDbContext context) : IMedicalRecordService
     private static TestDto MapTest(TestTaken e) =>
         new(e.Id, e.Name, e.Date, e.Result, e.Status, e.ReviewNote, e.CreatedAt);
 
-    private static MedicationDto MapMedication(PrescribedMedication e) =>
-        new(e.Id, e.Name, e.Dosage, e.Frequency, e.StartDate, e.EndDate, e.Status, e.ReviewNote, e.CreatedAt);
+    private static MedicationDto MapMedication(Medication e) =>
+        new(e.Id, e.Name, e.Dosage, e.Frequency, e.StartDate, e.EndDate, e.Status, e.ReviewNote, e.CreatedAt,e.ReminderTimes,e.DaysOfWeek,e.Notes,e.Source,e.PrescribedByDoctorId,e.DoctorRequestId,e.UpdatedAt);
 
     private static FamilyConditionDto MapFamilyCondition(FamilyCondition e) =>
         new(e.Id, e.Name, e.Relative, e.DiagnosisDate, e.Status, e.ReviewNote, e.CreatedAt);
