@@ -20,7 +20,7 @@ public class DoctorAdminService(
             .Include(d => d.DoctorData)
             .Where(d => d.ApprovalStatus == DoctorApprovalStatus.Pending && !d.IsDeleted);
 
-        return await query.ToPagedDtoAsync(d => d.ToDto(), page, pageSize);
+        return await query.ToPagedDtoAsync(d => d.ToSummaryDtoDto(), page, pageSize);
 
     }
 
@@ -30,7 +30,7 @@ public class DoctorAdminService(
             .Include(d => d.DoctorData)
             .Where(d => d.ApprovalStatus == DoctorApprovalStatus.Approved && !d.IsDeleted);
 
-        return await query.ToPagedDtoAsync(d => d.ToDto(), page, pageSize);
+        return await query.ToPagedDtoAsync(d => d.ToSummaryDtoDto(), page, pageSize);
     }
 
     public async Task<Result> GetDoctorRegistrationAsync(int doctorUserId)
@@ -42,7 +42,7 @@ public class DoctorAdminService(
         if (doctor is null)
             return new Result { Success = false, Message = "Doctor not found." };
 
-        return new Result { Success = true, Data = doctor.ToDto() };
+        return new Result { Success = true, Data = doctor.ToSummaryDtoDto() };
     }
 
     public async Task<Result> ApproveDoctorAsync(int adminUserId, ApproveDoctorDto dto)

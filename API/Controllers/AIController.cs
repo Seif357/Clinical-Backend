@@ -5,6 +5,9 @@ using Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
+using Application.ExtentionMethods;
+using Domain.Models;
 
 namespace API.Controllers;
 
@@ -16,22 +19,24 @@ public class AIController : ControllerBase
     private readonly IImageProcessingService _imageProcessingService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IValidator<UploadImageDto> _uploadValidator;
+    private readonly IAiService _aiService;
     private readonly ILogger<AIController> _logger;
 
     public AIController(
         IImageProcessingService imageProcessingService,
         IFileStorageService fileStorageService,
         IValidator<UploadImageDto> uploadValidator,
+        IAiService aiService,
         ILogger<AIController> logger)
     {
         _imageProcessingService = imageProcessingService;
         _fileStorageService = fileStorageService;
         _uploadValidator = uploadValidator;
+        _aiService = aiService;
         _logger = logger;
     }
 
 
-    /// el histopathology image file uplad
     [HttpPost("upload")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     [ProducesResponseType(typeof(ImageUploadResponseDto), StatusCodes.Status200OK)]
@@ -40,6 +45,18 @@ public class AIController : ControllerBase
     {
         try
         {
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (userRole.IsPatient())
+            {            
+                var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (claimValue is null || !int.TryParse(claimValue, out var patientId))
+                {
+                    _logger.LogWarning("UploadImage: could not resolve patientId from JWT claims");
+                    return Unauthorized(new { Message = "Unable to identify the requesting user." });
+                }
+                dto.PatientId = patientId;
+            }
             var validationResult = await _uploadValidator.ValidateAsync(dto);
             if (!validationResult.IsValid)
             {
@@ -49,8 +66,15 @@ public class AIController : ControllerBase
             }
 
             var result = await _imageProcessingService.UploadImageAsync(dto);
-            
-            _logger.LogInformation("Image uploaded successfully with ID {ImageId}");
+
+            if (!result.Success)
+            {
+                _logger.LogWarning("Image upload failed: {Message}", result.Message);
+                return BadRequest(new { result.Message });
+            }
+
+            var uploadedImage = result.Data as ImageUploadResponseDto;
+            _logger.LogInformation("Image uploaded successfully with ID {ImageId}", uploadedImage?.Id);
             return Ok(result);
         }
         catch (Exception ex)
@@ -61,7 +85,6 @@ public class AIController : ControllerBase
     }
 
 
-    /// Get image metadata by ID
     [HttpGet("image/{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -89,10 +112,26 @@ public class AIController : ControllerBase
     /// Get all images for a specific patient
     [HttpGet("patient/{PatientId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetImagesByPatientId(int patientId)
     {
         try
         {
+            var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            var isPatient  = callerRole.IsPatient();
+
+            if (isPatient)
+            {
+                var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (claimValue is null || !int.TryParse(claimValue, out var callerId) || callerId != patientId)
+                {
+                    _logger.LogWarning(
+                        "Patient {CallerId} attempted to access images for patient {PatientId}",
+                        claimValue, patientId);
+                    return Forbid();
+                }
+            }
+
             var images = await _imageProcessingService.GetImagesByPatientIdAsync(patientId);
             return Ok(images);
         }
@@ -129,8 +168,29 @@ public class AIController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while deleting the image" });
         }
     }
+    
+    [HttpPost("analyze/{imageId:int}")]
+    [ProducesResponseType(typeof(AiAnalysisResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> AnalyzeImage(int imageId)
+    {
+        _logger.LogInformation("Analyse request received for image {ImageId}", imageId);
 
-/// Download the original image file
+        var result = await _aiService.AnalyzeImageAsync(imageId);
+
+        if (!result.Success)
+        {
+            // Distinguish between "not found" and "model unreachable"
+            if (result.Message!.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new { result.Message });
+
+            return StatusCode(StatusCodes.Status502BadGateway, new { result.Message });
+        }
+
+        return Ok(result.Data);
+    }
+
     [HttpGet("image/{id:int}/file")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

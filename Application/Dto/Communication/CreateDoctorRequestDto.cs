@@ -1,3 +1,4 @@
+using Application.Dto.MedicalRecord;
 using Domain.Models.Communication;
 using Microsoft.AspNetCore.Http;
 
@@ -9,5 +10,6 @@ string Subject,
 string Message,
 RequestType RequestType,
 RequestImportance Importance,
-List<IFormFile>? Images
+List<IFormFile>? Images,
+PrescribeMedicationDto? Prescription
 );

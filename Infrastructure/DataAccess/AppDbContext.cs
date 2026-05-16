@@ -1,4 +1,4 @@
-﻿using Domain.Models;
+using Domain.Models;
 using Domain.Models.AI;
 using Domain.Models.Auth;
 using Domain.Models.Communication;
@@ -20,7 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<MedicalRecord> MedicalRecords { get; set; }
     public DbSet<Allergy> Allergies { get; set; }
     public DbSet<FamilyCondition> FamilyConditions { get; set; }
-    public DbSet<PrescribedMedication> PrescribedMedications { get; set; }
+    public DbSet<Medication> Medications { get; set; }
     public DbSet<Surgery> Surgeries { get; set; }
     public DbSet<TestTaken> TestsTaken { get; set; }
     public DbSet<Visit> Visits { get; set; }
@@ -129,5 +129,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
  
         builder.Entity<ScheduleSlot>()
             .HasIndex(ss => new { ss.PatientId, ss.Status });
+
+        builder.Entity<Medication>()
+            .HasOne(m => m.MedicalRecord)
+            .WithMany(r => r.Medications)
+            .HasForeignKey(m => m.MedicalRecordId)
+            .OnDelete(DeleteBehavior.Cascade);
+ 
+        // Store List<string> and List<int> as comma-separated strings
+        builder.Entity<Medication>()
+            .Property(m => m.ReminderTimes)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v == "" ? new List<string>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+ 
+        builder.Entity<Medication>()
+            .Property(m => m.DaysOfWeek)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v == "" ? new List<int>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList());
     }
 }

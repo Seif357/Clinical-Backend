@@ -2,9 +2,11 @@ using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.DTOs;
 using Application.Interfaces;
+using Application.Mapper;
 using Domain.Models;
 using Domain.Models.Auth;
 using Infrastructure.DataAccess;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,31 +14,20 @@ using Microsoft.EntityFrameworkCore;
 namespace Application.Services;
 
 public class PatientService(AppDbContext context,
-    UserManager<AppUser> userManager) : IPatientService
+    UserManager<AppUser> userManager,
+    IFileStorageService fileStorage) : IPatientService
 {
     public async Task<IActionResult> GetPatientDataServiceAsync(string userId)
     {
         var patient = await context.Patients
             .AsNoTracking()
             .Include(p => p.PatientData)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Allergies)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Visits)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.Surgeries)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.TestsTaken)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.PrescribedMedications)
-            .Include(p => p.MedicalRecord)
-            .ThenInclude(m => m.FamilyConditions)
             .FirstOrDefaultAsync(p => p.UserId.ToString() == userId && !p.IsDeleted);
 
         if (patient is null)
             return new Result { Success = false, Message = "Patient not found" };
 
-        return new Result<Patient> { Success = true, Data = patient };
+        return new Result<PatientDto> { Success = true, Data =patient.ToDto() };
     }
 
     public async Task<IActionResult> UpdatePatientDataServiceAsync(string userId, UpdatePatientDto dto)
@@ -80,8 +71,13 @@ public class PatientService(AppDbContext context,
                 };
         }
 
-        if (dto.ImagePath is not null)
-            patient.ImagePath = dto.ImagePath;
+        if (dto.Image is not null)
+        {
+            var oldPath = patient.ImagePath;
+            patient.ImagePath = await fileStorage.SaveFileAsync(dto.Image, "profiles");
+            if (oldPath is not null)
+                await fileStorage.DeleteFileAsync(oldPath);
+        }
 
         await context.SaveChangesAsync();
 

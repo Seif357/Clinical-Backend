@@ -776,12 +776,24 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Severity")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -821,8 +833,20 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -834,7 +858,7 @@ namespace Infrastructure.Migrations
                     b.ToTable("FamilyConditions");
                 });
 
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.PrescribedMedication", b =>
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -844,6 +868,13 @@ namespace Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("DaysOfWeek")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DoctorRequestId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Dosage")
                         .IsRequired()
@@ -859,18 +890,43 @@ namespace Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("MedicalRecordId")
+                    b.Property<int>("MedicalRecordId")
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PrescribedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReminderTimes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
 
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -879,7 +935,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("MedicalRecordId");
 
-                    b.ToTable("PrescribedMedications");
+                    b.ToTable("Medications");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
@@ -910,8 +966,20 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -951,8 +1019,20 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -996,8 +1076,20 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RowVersion")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Treatment_Plan")
                         .IsRequired()
@@ -1383,11 +1475,15 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("MedicalRecordId");
                 });
 
-            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.PrescribedMedication", b =>
+            modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Medication", b =>
                 {
-                    b.HasOne("Domain.Models.MedicalRecord", null)
-                        .WithMany("PrescribedMedications")
-                        .HasForeignKey("MedicalRecordId");
+                    b.HasOne("Domain.Models.MedicalRecord", "MedicalRecord")
+                        .WithMany("Medications")
+                        .HasForeignKey("MedicalRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MedicalRecord");
                 });
 
             modelBuilder.Entity("Domain.Models.MedicalRecordAttributes.Surgery", b =>
@@ -1533,7 +1629,7 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("FamilyConditions");
 
-                    b.Navigation("PrescribedMedications");
+                    b.Navigation("Medications");
 
                     b.Navigation("Surgeries");
 

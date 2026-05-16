@@ -1,7 +1,8 @@
 ﻿namespace Domain.Models.MedicalRecordAttributes;
 
-public class Visit : ParentEntity
+public class Visit : ReviewableEntry
 {
+    public int? MedicalRecordId { get; set; }
     public DateTime Date { get; set; }
     public string DoctorName { get; set; }
     public string ReasonForVisit { get; set; }

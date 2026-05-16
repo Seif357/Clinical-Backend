@@ -9,6 +9,6 @@ public class MedicalRecord : ParentEntity
     public ICollection<Surgery> Surgeries { get; set; }
     public ICollection<TestTaken> TestsTaken { get; set; }
     public ICollection<Allergy> Allergies { get; set; }
-    public ICollection<PrescribedMedication> PrescribedMedications { get; set; }
+    public ICollection<Medication> Medications { get; set; }
     public ICollection<FamilyCondition> FamilyConditions { get; set; }
 }

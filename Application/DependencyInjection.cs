@@ -1,4 +1,4 @@
-﻿using Application.Interfaces;
+using Application.Interfaces;
 using Application.Services;
 using Application.Validators;
 using FluentValidation;
@@ -13,6 +13,11 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
+        services.AddScoped<IAiService, AiService>();
+        services.AddHttpClient("AiModel", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddValidatorsFromAssemblyContaining<UploadImageValidator>();
@@ -29,7 +34,9 @@ public static class DependencyInjection
         services.AddScoped<IContactService, ContactService>();
         services.AddScoped<IDoctorAdminService, DoctorAdminService>();
         services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IMedicalRecordService, MedicalRecordService>();
         services.AddScoped<IScheduleService, ScheduleService>();
+        services.AddScoped<IMedicationService, MedicationService>();
         return services;
     }
 }
