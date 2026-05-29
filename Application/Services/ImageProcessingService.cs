@@ -31,7 +31,7 @@ public class ImageProcessingService : IImageProcessingService
         {
             _logger.LogInformation("Starting image upload for patient {PatientId}", dto.PatientId);
 
-            var folder = dto.PatientId?.ToString() ?? "unassigned";
+            var folder = dto.PatientId.ToString();
             var filePath = await _fileStorageService.SaveFileAsync(dto.Image, folder);
 
             var modelInput = new ModelInput
@@ -110,7 +110,8 @@ public class ImageProcessingService : IImageProcessingService
     {
         try
         {
-            var modelInput = await _context.Set<ModelInput>().FindAsync(id);
+            var modelInput = await _context.Set<ModelInput>()
+                .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
 
             if (modelInput == null)
             {
@@ -119,10 +120,12 @@ public class ImageProcessingService : IImageProcessingService
             }
 
             await _fileStorageService.DeleteFileAsync(modelInput.HistopathologyImagePath);
-            _context.Set<ModelInput>().Remove(modelInput);
+
+            modelInput.IsDeleted = true;
+            modelInput.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Image with ID {Id} deleted successfully", id);
+            _logger.LogInformation("Image with ID {Id} soft-deleted successfully", id);
             return true;
         }
         catch (Exception ex)

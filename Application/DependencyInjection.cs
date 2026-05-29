@@ -1,4 +1,4 @@
-﻿using Application.Interfaces;
+using Application.Interfaces;
 using Application.Services;
 using Application.Validators;
 using FluentValidation;

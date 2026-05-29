@@ -1,4 +1,4 @@
-﻿using Domain.Models;
+using Domain.Models;
 using Domain.Models.AI;
 using Domain.Models.Auth;
 using Domain.Models.Communication;
@@ -129,6 +129,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
  
         builder.Entity<ScheduleSlot>()
             .HasIndex(ss => new { ss.PatientId, ss.Status });
+
         builder.Entity<Medication>()
             .HasOne(m => m.MedicalRecord)
             .WithMany(r => r.Medications)

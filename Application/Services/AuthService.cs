@@ -307,6 +307,7 @@ public class AuthService(
         await context.SaveChangesAsync();
         return new Result { Success = true, Message = "Account deleted successfully" };
     }
+
     public async Task<GoogleLoginResult> GoogleLoginServiceAsync(GoogleLoginDto dto)
     {
         // 1. Validate the Google id_token server-side
@@ -575,6 +576,7 @@ public class AuthService(
         claims.AddRange(userClaims);
         return claims;
     }
+
     private async Task<AuthResult> BuildAuthResultAsync(AppUser user)
     {
         var claims = await GenerateUserClaimsAsync(user);

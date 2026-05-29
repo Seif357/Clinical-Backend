@@ -16,6 +16,4 @@ public record PatientDto(
     BloodType? BloodType,
     DateOnly? DateOfBirth,
     DateTime CreatedAt,
-    DateTime UpdatedAt,
-    MedicalRecordDto? MedicalRecord
-);
+    DateTime UpdatedAt);
