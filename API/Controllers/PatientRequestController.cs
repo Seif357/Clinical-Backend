@@ -47,4 +47,15 @@ public class PatientRequestController(IPatientRequestService patientRequestServi
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return await patientRequestService.DeleteAsync(id, requestId);
     }
+
+    /// <summary>
+    /// Mark a patient request as Completed.
+    /// Only the patient who owns the request can complete it.
+    /// </summary>
+    [HttpPatch("{requestId:int}/complete")]
+    public async Task<IActionResult> MarkComplete(int requestId)
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await patientRequestService.MarkCompleteAsync(id, requestId);
+    }
 }

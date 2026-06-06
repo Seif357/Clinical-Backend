@@ -10,5 +10,6 @@ public record PatientRequestSummaryDto
      RequestImportance Importance, 
      string DoctorId, 
      int ResponseCount, 
+     string Status,
      DateTime CreatedAt
 );

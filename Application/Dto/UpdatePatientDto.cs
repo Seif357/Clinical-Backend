@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Domain.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace Application.Dto;
 
@@ -7,5 +8,7 @@ public record UpdatePatientDto(
     string? UserName,
     string? Email,
     string? PhoneNumber,
-    bool IsDeleted
+    bool IsDeleted, 
+    DateOnly? DateOfBirth,
+    BloodType? BloodType 
 );

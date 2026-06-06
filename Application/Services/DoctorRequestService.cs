@@ -34,6 +34,7 @@ public class DoctorRequestService(
                 r.PatientId,
                 context.PatientResponses
                     .Count(pr => pr.DoctorRequestId == r.Id && !pr.IsDeleted),
+                r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))
             .ToListAsync();
@@ -180,5 +181,24 @@ public class DoctorRequestService(
         await context.SaveChangesAsync();
 
         return new Result { Success = true, Message = "Request deleted successfully" };
+    }
+
+    public async Task<IActionResult> MarkCompleteAsync(string doctorId, int requestId)
+    {
+        var request = await context.DoctorRequests
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.DoctorId == doctorId && !r.IsDeleted);
+
+        if (request is null)
+            return new Result { Success = false, Message = "Request not found" };
+
+        if (request.IsCompleted)
+            return new Result { Success = false, Message = "Request is already marked as completed" };
+
+        request.IsCompleted = true;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+
+        return new Result { Success = true, Message = "Request marked as completed" };
     }
 }

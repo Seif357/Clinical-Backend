@@ -10,4 +10,5 @@ public interface IPatientRequestService
     Task<IActionResult> CreateAsync(string patientId, CreatePatientRequestDto dto);
     Task<IActionResult> UpdateAsync(string patientId, int requestId, UpdatePatientRequestDto dto);
     Task<IActionResult> DeleteAsync(string patientId, int requestId);
+    Task<IActionResult> MarkCompleteAsync(string patientId, int requestId);
 }

@@ -79,6 +79,12 @@ public class PatientService(AppDbContext context,
                 await fileStorage.DeleteFileAsync(oldPath);
         }
 
+        if (dto.DateOfBirth.HasValue)
+            patient.DateOfBirth = dto.DateOfBirth.Value;
+
+        if (dto.BloodType.HasValue)
+            patient.BloodType = dto.BloodType.Value;
+
         await context.SaveChangesAsync();
 
         return new Result { Success = true, Message = "Profile updated successfully" };

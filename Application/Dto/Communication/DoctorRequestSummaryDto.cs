@@ -11,5 +11,6 @@ public class DoctorRequestSummaryDto
  RequestType RequestType,
  string PatientId ,
  int ResponseCount,
+ string Status,
 DateTime CreatedAt 
 );

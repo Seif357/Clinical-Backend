@@ -29,6 +29,7 @@ public class PatientRequestService(
                 r.Importance,
                 r.DoctorId,
                 context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted),
+                r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))
             .ToListAsync();
@@ -166,5 +167,24 @@ public class PatientRequestService(
         await context.SaveChangesAsync();
 
         return new Result { Success = true, Message = "Request deleted successfully" };
+    }
+
+    public async Task<IActionResult> MarkCompleteAsync(string patientId, int requestId)
+    {
+        var request = await context.PatientRequests
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.PatientId == patientId && !r.IsDeleted);
+
+        if (request is null)
+            return new Result { Success = false, Message = "Request not found" };
+
+        if (request.IsCompleted)
+            return new Result { Success = false, Message = "Request is already marked as completed" };
+
+        request.IsCompleted = true;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+
+        return new Result { Success = true, Message = "Request marked as completed" };
     }
 }
