@@ -2,7 +2,7 @@ using Domain.Models.Communication;
  
 namespace Application.Dto.Communication;
 
-public class DoctorRequestSummaryDto
+public record DoctorRequestSummaryDto
 (
  int Id ,
  string Subject ,               

@@ -8,7 +8,6 @@ public record UpdatePatientDto(
     string? UserName,
     string? Email,
     string? PhoneNumber,
-    bool IsDeleted, 
     DateOnly? DateOfBirth,
     BloodType? BloodType 
 );

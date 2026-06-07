@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Application.Dto.AuthDto;
 using Application.Interfaces;
 using Domain.Models.Auth;
@@ -14,7 +15,6 @@ public class OtpService(
     IConfiguration configuration,
     AppDbContext context) : IOtpService
 {
-    private static readonly Random _rng = new();
     private int ExpiryMinutes => configuration.GetValue<int>("Otp:ExpiryMinutes", 10);
 
     public async Task<string> IssueAsync(
@@ -27,8 +27,7 @@ public class OtpService(
         // Invalidate any previous pending OTPs for this purpose
         await otpRepository.InvalidatePreviousAsync(userId, purpose);
 
-        // Generate 6-digit code
-        var plainCode = _rng.Next(100_000, 999_999).ToString();
+        var plainCode = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
         var hash = BCrypt.Net.BCrypt.HashPassword(plainCode);
 
         var record = new OtpRecord
@@ -46,7 +45,6 @@ public class OtpService(
         await otpRepository.AddAsync(record);
         await context.SaveChangesAsync();
 
-        // Dispatch
         bool isPhone = target.StartsWith('+') || target.All(c => char.IsDigit(c) || c == '+' || c == '-');
         if (isPhone)
             await smsService.SendOtpAsync(target, plainCode, ExpiryMinutes);
