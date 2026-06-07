@@ -13,7 +13,8 @@ namespace Application.Services;
 public class PatientRequestService(
     AppDbContext context,
     IFileStorageService fileStorage,
-    INotificationService notificationService) : IPatientRequestService
+    INotificationService notificationService,
+    IImageUrlHelper imageUrlHelper) : IPatientRequestService
 {
     // GET / — lightweight summary list, no images, no responses
     public async Task<IActionResult> GetAllSummaryAsync(string patientId)
@@ -47,6 +48,9 @@ public class PatientRequestService(
 
         if (request is null)
             return new Result { Success = false, Message = "Request not found" };
+
+        foreach (var img in request.PatientRequestImages)
+            img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
         var responses = await context.DoctorResponses
             .AsNoTracking()
@@ -100,6 +104,9 @@ public class PatientRequestService(
             PatientId = patientId,
             SentAt = request.CreatedAt
         });
+
+        foreach (var img in request.PatientRequestImages)
+            img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
         return new Result<PatientRequest> { Success = true, Data = request, Message = "Request sent successfully" };
     }

@@ -15,7 +15,8 @@ namespace Application.Services;
 
 public class PatientService(AppDbContext context,
     UserManager<AppUser> userManager,
-    IFileStorageService fileStorage) : IPatientService
+    IFileStorageService fileStorage,
+    IImageUrlHelper imageUrlHelper) : IPatientService
 {
     public async Task<IActionResult> GetPatientDataServiceAsync(string userId)
     {
@@ -27,7 +28,9 @@ public class PatientService(AppDbContext context,
         if (patient is null)
             return new Result { Success = false, Message = "Patient not found" };
 
-        return new Result<PatientDto> { Success = true, Data =patient.ToDto() };
+        var dto = patient.ToDto();
+        var resolved = dto with { ImagePath = imageUrlHelper.Resolve(dto.ImagePath) };
+        return new Result<PatientDto> { Success = true, Data = resolved };
     }
 
     public async Task<IActionResult> UpdatePatientDataServiceAsync(string userId, UpdatePatientDto dto)
