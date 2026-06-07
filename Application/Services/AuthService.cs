@@ -13,6 +13,7 @@ using Infrastructure.Configurations;
 using Infrastructure.DataAccess;
 using Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -44,31 +45,32 @@ public class AuthService(
 
         var newUser = registerDto.ToEntity();
         await using var transaction = await context.Database.BeginTransactionAsync();
-        
-            var creationResult = await userManager.CreateAsync(newUser, registerDto.Password);
-            if (!creationResult.Succeeded)
+
+        var creationResult = await userManager.CreateAsync(newUser, registerDto.Password);
+        if (!creationResult.Succeeded)
+        {
+            await transaction.RollbackAsync();
+            return new Result
+            {
+                Success = false,
+                Message =
+                    $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+            };
+        }
+
+        string role;
+        if (registerDto.IsDoctor)
+        {
+            if (string.IsNullOrWhiteSpace(registerDto.ProfessionalPracticeLicense) ||
+                string.IsNullOrWhiteSpace(registerDto.IssuingAuthority))
             {
                 await transaction.RollbackAsync();
                 return new Result
                 {
                     Success = false,
-                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                    Message = "Professional Practice License and Issuing Authority are required for doctor registration"
                 };
             }
-
-            string role;
-            if (registerDto.IsDoctor)
-            {
-                if (string.IsNullOrWhiteSpace(registerDto.ProfessionalPracticeLicense) ||
-                    string.IsNullOrWhiteSpace(registerDto.IssuingAuthority))
-                {
-                    await transaction.RollbackAsync();
-                    return new Result
-                    {
-                        Success = false,
-                        Message = "Professional Practice License and Issuing Authority are required for doctor registration"
-                    };
-                }
 
             role = "Doctor";
             await context.Doctors.AddAsync(new Doctor
@@ -98,11 +100,11 @@ public class AuthService(
         {
             await context.UserEmails.AddAsync(new UserEmail
             {
-                UserId     = newUser.Id,
-                Email      = registerDto.Email.ToLowerInvariant(),
-                IsPrimary  = true,
+                UserId = newUser.Id,
+                Email = registerDto.Email.ToLowerInvariant(),
+                IsPrimary = true,
                 IsVerified = false,
-                CreatedAt  = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
         }
 
@@ -142,147 +144,156 @@ public class AuthService(
             ? await userManager.FindByEmailAsync(loginDto.UsernameOrEmail)
             : await userManager.FindByNameAsync(loginDto.UsernameOrEmail);
 
-            if (user == null || !await userManager.CheckPasswordAsync(user, loginDto.Password)||user.IsDeleted)
+        if (user == null || !await userManager.CheckPasswordAsync(user, loginDto.Password) || user.IsDeleted)
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Message = AuthConstants.Messages.InvalidCredentials
+            };
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Contains(Role.Doctor.ToString()))
+        {
+            var status = await GetDoctorApprovalStatusAsync(user);
+            if (status.Equals(DoctorApprovalStatus.Pending))
             {
                 return new AuthResult
                 {
-                    Success = false, 
-                    Message = AuthConstants.Messages.InvalidCredentials
+                    Success = false,
+                    Message = AuthConstants.Messages.StatusPending
                 };
             }
-            var roles = await userManager.GetRolesAsync(user);
-            if (roles.Contains(Role.Doctor.ToString()))
-            {
-                var status = await GetDoctorApprovalStatusAsync(user);
-                if (status.Equals(DoctorApprovalStatus.Pending))
-                {
-                    return new AuthResult
-                    {
-                        Success = false, 
-                        Message = AuthConstants.Messages.StatusPending
-                    };
-                }
-                if (status.Equals(DoctorApprovalStatus.Rejected))
-                {
-                    return new AuthResult
-                    {
-                        Success = false, 
-                        Message = AuthConstants.Messages.StatusRejected
-                    };
-                }
-            }
-            var claims = await GenerateUserClaimsAsync(user);
-            var accessToken = jwtTokenService.GenerateAccessToken(claims);
-            var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
 
-            await refreshTokenRepository.AddAsync(refreshToken);
-            await context.SaveChangesAsync();
-            
-            return new AuthResult
+            if (status.Equals(DoctorApprovalStatus.Rejected))
             {
-                Success = true,
-                AccessToken = accessToken,
-                AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
-                RefreshToken = refreshToken.Token,
-                RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
-            };
+                return new AuthResult
+                {
+                    Success = false,
+                    Message = AuthConstants.Messages.StatusRejected
+                };
+            }
+        }
+
+        var claims = await GenerateUserClaimsAsync(user);
+        var accessToken = jwtTokenService.GenerateAccessToken(claims);
+        var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+
+        await refreshTokenRepository.AddAsync(refreshToken);
+        await context.SaveChangesAsync();
+
+        return new AuthResult
+        {
+            Success = true,
+            AccessToken = accessToken,
+            AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpiration = DateTime.UtcNow.AddDays(jwtTokenService.GetRefreshTokenExpirationDays())
+        };
     }
 
     public async Task<AuthResult> UpdateEmailServiceAsync(string userId, UpdateEmailDto updateEmail)
     {
-        
-            var user = await userManager.FindByIdAsync(userId);
-            if (user is null || user.IsDeleted)
-            {  return new AuthResult
-                {
-                    Success = false, 
-                    Message = "User not found"
-                };
-            }
-            if (user.Email == updateEmail.NewEmail)
-            {   return new AuthResult
-                {
-                    Success = false, 
-                    Message = "The email you entered has not changed"
-                };
-            }
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null || user.IsDeleted)
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Message = "User not found"
+            };
+        }
+
+        if (user.Email == updateEmail.NewEmail)
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Message = "The email you entered has not changed"
+            };
+        }
 
 
-            user.Email = updateEmail.NewEmail;
-            var updateResult = await userManager.UpdateAsync(user);
-            return updateResult.Succeeded
-                ? new AuthResult { Success = true }
-                : new AuthResult { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
+        user.Email = updateEmail.NewEmail;
+        var updateResult = await userManager.UpdateAsync(user);
+        return updateResult.Succeeded
+            ? new AuthResult { Success = true }
+            : new AuthResult
+                { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
     }
 
     public async Task<AuthResult> UpdateUsernameServiceAsync(string userId, UpdateUsernameDto updateUsernameDto)
     {
-            var user = await userManager.FindByIdAsync(userId);
-            if (user is null || user.IsDeleted)
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null || user.IsDeleted)
+        {
+            return new AuthResult
             {
-                return new AuthResult
-                {
-                    Success = false, 
-                    Message = "User not found"
-                };
-            }
+                Success = false,
+                Message = "User not found"
+            };
+        }
 
-            if (user.UserName == updateUsernameDto.NewUserName)
+        if (user.UserName == updateUsernameDto.NewUserName)
+        {
+            return new AuthResult
             {
-                return new AuthResult
-                {
-                    Success = false, 
-                    Message = "The username you entered has not changed"
-                };
-            }
-            
-            user.UserName = updateUsernameDto.NewUserName;
-            var updateResult = await userManager.UpdateAsync(user);
-            return updateResult.Succeeded
-                ? new AuthResult { Success = true }
-                : new AuthResult { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
+                Success = false,
+                Message = "The username you entered has not changed"
+            };
+        }
+
+        user.UserName = updateUsernameDto.NewUserName;
+        var updateResult = await userManager.UpdateAsync(user);
+        return updateResult.Succeeded
+            ? new AuthResult { Success = true }
+            : new AuthResult
+                { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
     }
-    
+
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {
-            if (string.IsNullOrEmpty(refreshToken)) 
-                throw new SecurityTokenException("Refresh Token is required");
-            var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
-            if (token == null) 
-                throw new SecurityTokenException("Invalid Refresh Token");
+        if (string.IsNullOrEmpty(refreshToken))
+            throw new SecurityTokenException("Refresh Token is required");
+        var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
+        if (token == null)
+            throw new SecurityTokenException("Invalid Refresh Token");
 
-            if (!token.IsActive)
-            {
-                await refreshTokenRepository.RevokeAllUserTokensAsync(token.UserId,RevokeConstants.Messages.OldTokenUsage);
-                await context.SaveChangesAsync();
-                throw new SecurityTokenException("Refresh token reuse detected — all sessions have been revoked");
+        if (!token.IsActive)
+        {
+            await refreshTokenRepository.RevokeAllUserTokensAsync(token.UserId, RevokeConstants.Messages.OldTokenUsage);
+            await context.SaveChangesAsync();
+            throw new SecurityTokenException("Refresh token reuse detected — all sessions have been revoked");
 
-            } 
-            await RevokeTokenServiceAsync(refreshToken, RevokeConstants.Messages.RefreshTokenReplaced);
-                var user = await userManager.FindByIdAsync(token.UserId.ToString());
-                if (user == null)
-                    throw new SecurityTokenException("User is not found");
-                var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
-                newRefreshToken.DeviceId = token.DeviceId; // carry device forward
-                await refreshTokenRepository.AddAsync(newRefreshToken);
-                await context.SaveChangesAsync();
-                
-                var claims = await GenerateUserClaimsAsync(user);
-                var accessToken = jwtTokenService.GenerateAccessToken(claims);
-                return new AuthResult
-                {
-                    Success = true,
-                    Message = AuthConstants.Messages.TokenRefreshedSuccessfully,
-                    AccessToken = accessToken,
-                    RefreshToken = newRefreshToken.Token,
-                    AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
-                    RefreshTokenExpiration = newRefreshToken.ExpiresAt
-                }; 
+        }
+
+        await RevokeTokenServiceAsync(refreshToken, RevokeConstants.Messages.RefreshTokenReplaced);
+        var user = await userManager.FindByIdAsync(token.UserId.ToString());
+        if (user == null)
+            throw new SecurityTokenException("User is not found");
+        var newRefreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
+        newRefreshToken.DeviceId = token.DeviceId; // carry device forward
+        await refreshTokenRepository.AddAsync(newRefreshToken);
+        await context.SaveChangesAsync();
+
+        var claims = await GenerateUserClaimsAsync(user);
+        var accessToken = jwtTokenService.GenerateAccessToken(claims);
+        return new AuthResult
+        {
+            Success = true,
+            Message = AuthConstants.Messages.TokenRefreshedSuccessfully,
+            AccessToken = accessToken,
+            RefreshToken = newRefreshToken.Token,
+            AccessTokenExpiration = DateTime.UtcNow.AddMinutes(jwtTokenService.GetTokenExpirationMinutes()),
+            RefreshTokenExpiration = newRefreshToken.ExpiresAt
+        };
     }
 
     public async Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null)
     {
-        if (string.IsNullOrEmpty(refreshToken)) 
+        if (string.IsNullOrEmpty(refreshToken))
             throw new SecurityTokenException("Refresh Token is required");
         var token = await refreshTokenRepository.GetByTokenAsync(refreshToken);
         if (token == null)
@@ -294,43 +305,6 @@ public class AuthService(
         token.ReasonRevoked = revokeReason;
         await refreshTokenRepository.UpdateAsync(token);
         return await context.SaveChangesAsync() >= 1;
-    }
-
-    public async Task<Result> DeleteAccountService(string userId, string userRole, string password)
-    {
-        if (userRole.IsAdmin())
-        {
-            return new Result
-            {
-                Success = false,
-                Message = "Can't delete this account"
-            };
-        }
-        var verificationResult = await VerifyPasswordAsync(userId, password);
-        if (!verificationResult.Success)
-            return new Result { Success = false, Message = verificationResult.Message };
- 
-        var user = verificationResult.Data!;
-        user.IsDeleted = true;
-        var updateResult = await userManager.UpdateAsync(user);
-        if (!updateResult.Succeeded)
-            return new Result { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
- 
-        await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
- 
-        if (userRole.IsDoctor())
-        {
-            var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
-            if (doctor != null) doctor.IsDeleted = true;
-        }
-        else if (userRole.IsPatient())
-        {
-            var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
-            if (patient != null) patient.IsDeleted = true;
-        }
- 
-        await context.SaveChangesAsync();
-        return new Result { Success = true, Message = "Account deleted successfully" };
     }
 
     public async Task<GoogleLoginResult> GoogleLoginServiceAsync(GoogleLoginDto dto)
@@ -373,11 +347,11 @@ public class AuthService(
             var authResult = await BuildAuthResultAsync(existingUser);
             return new GoogleLoginResult
             {
-                Success                = authResult.Success,
-                Message                = authResult.Message,
-                AccessToken            = authResult.AccessToken,
-                AccessTokenExpiration  = authResult.AccessTokenExpiration,
-                RefreshToken           = authResult.RefreshToken,
+                Success = authResult.Success,
+                Message = authResult.Message,
+                AccessToken = authResult.AccessToken,
+                AccessTokenExpiration = authResult.AccessTokenExpiration,
+                RefreshToken = authResult.RefreshToken,
                 RefreshTokenExpiration = authResult.RefreshTokenExpiration
             };
         }
@@ -387,9 +361,10 @@ public class AuthService(
         {
             return new GoogleLoginResult
             {
-                Success              = false,
+                Success = false,
                 RequiresRegistration = true,
-                Message              = "Doctor registration requires additional information. Please provide your Professional Practice License and Issuing Authority."
+                Message =
+                    "Doctor registration requires additional information. Please provide your Professional Practice License and Issuing Authority."
             };
         }
 
@@ -398,11 +373,11 @@ public class AuthService(
 
         var newUser = new AppUser
         {
-            UserName       = username,
-            Email          = email,
+            UserName = username,
+            Email = email,
             EmailConfirmed = true,
-            CreatedAt      = DateTime.UtcNow,
-            UpdatedAt      = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await using var transaction = await context.Database.BeginTransactionAsync();
@@ -414,7 +389,8 @@ public class AuthService(
                 await transaction.RollbackAsync();
                 return new GoogleLoginResult
                 {
-                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                    Message =
+                        $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
                 };
             }
 
@@ -429,11 +405,11 @@ public class AuthService(
 
             await context.UserEmails.AddAsync(new UserEmail
             {
-                UserId     = newUser.Id,
-                Email      = email.ToLowerInvariant(),
-                IsPrimary  = true,
+                UserId = newUser.Id,
+                Email = email.ToLowerInvariant(),
+                IsPrimary = true,
                 IsVerified = true,
-                CreatedAt  = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
 
             await context.SaveChangesAsync();
@@ -442,11 +418,11 @@ public class AuthService(
             var authResult = await BuildAuthResultAsync(newUser);
             return new GoogleLoginResult
             {
-                Success                = authResult.Success,
-                Message                = authResult.Message,
-                AccessToken            = authResult.AccessToken,
-                AccessTokenExpiration  = authResult.AccessTokenExpiration,
-                RefreshToken           = authResult.RefreshToken,
+                Success = authResult.Success,
+                Message = authResult.Message,
+                AccessToken = authResult.AccessToken,
+                AccessTokenExpiration = authResult.AccessTokenExpiration,
+                RefreshToken = authResult.RefreshToken,
                 RefreshTokenExpiration = authResult.RefreshTokenExpiration
             };
         }
@@ -504,11 +480,11 @@ public class AuthService(
 
         var newUser = new AppUser
         {
-            UserName       = username,
-            Email          = email,
+            UserName = username,
+            Email = email,
             EmailConfirmed = true,
-            CreatedAt      = DateTime.UtcNow,
-            UpdatedAt      = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await using var transaction = await context.Database.BeginTransactionAsync();
@@ -520,15 +496,16 @@ public class AuthService(
                 await transaction.RollbackAsync();
                 return new AuthResult
                 {
-                    Message = $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
+                    Message =
+                        $"Failed to create user: {string.Join(", ", creationResult.Errors.Select(e => e.Description))}"
                 };
             }
 
             await context.Doctors.AddAsync(new Doctor
             {
-                UserId                      = newUser.Id,
+                UserId = newUser.Id,
                 ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense,
-                IssuingAuthority            = dto.IssuingAuthority
+                IssuingAuthority = dto.IssuingAuthority
             });
 
             var roleResult = await userManager.AddToRoleAsync(newUser, "Doctor");
@@ -540,11 +517,11 @@ public class AuthService(
 
             await context.UserEmails.AddAsync(new UserEmail
             {
-                UserId     = newUser.Id,
-                Email      = email.ToLowerInvariant(),
-                IsPrimary  = true,
+                UserId = newUser.Id,
+                Email = email.ToLowerInvariant(),
+                IsPrimary = true,
                 IsVerified = true,
-                CreatedAt  = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
 
             await context.SaveChangesAsync();
@@ -570,6 +547,44 @@ public class AuthService(
             return new AuthResult { Message = ex.Message };
         }
     }
+
+    public async Task<Result> DeleteAccountService(string userId, string userRole, string password)
+    {
+        if (userRole.IsAdmin())
+        {
+            return new Result
+            {
+                Success = false,
+                Message = "Can't delete this account"
+            };
+        }
+        var verificationResult = await VerifyPasswordAsync(userId, password);
+        if (!verificationResult.Success)
+            return new Result { Success = false, Message = verificationResult.Message };
+ 
+        var user = verificationResult.Data!;
+        user.IsDeleted = true;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return new Result { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
+ 
+        await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
+ 
+        if (userRole.IsDoctor())
+        {
+            var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
+            if (doctor != null) doctor.IsDeleted = true;
+        }
+        else if (userRole.IsPatient())
+        {
+            var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            if (patient != null) patient.IsDeleted = true;
+        }
+ 
+        await context.SaveChangesAsync();
+        return new Result { Success = true, Message = "Account deleted successfully" };
+    }
+
     private async Task<Result> CheckExistence(string username, string email)
     {
         var userExists = await context.Users
@@ -592,6 +607,7 @@ public class AuthService(
 
         return new Result { Success = true };
     }
+
     private async Task<Result<AppUser>> VerifyPasswordAsync(string userId, string password)
     {
         var user = await userManager.FindByIdAsync(userId);
@@ -603,12 +619,14 @@ public class AuthService(
                 Message = AuthConstants.Messages.InvalidCredentials,
             };
         }
-        return  new Result<AppUser>
+
+        return new Result<AppUser>
         {
             Success = true,
             Data = user
         };
     }
+
     private async Task<List<Claim>> GenerateUserClaimsAsync(AppUser user)
     {
         var claims = new List<Claim>

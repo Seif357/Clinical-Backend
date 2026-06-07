@@ -9,6 +9,5 @@ public record CreatePatientRequestDto
      string Subject ,
      string Message,
      RequestImportance Importance,
-     List<DateOnly>? AppointmentRequestedDates,
      List<IFormFile>? Images                   
 );

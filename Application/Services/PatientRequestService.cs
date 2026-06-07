@@ -80,7 +80,6 @@ public class PatientRequestService(
             Subject = dto.Subject,
             Message = dto.Message,
             Importance = dto.Importance,
-            AppointmentRequestedDates = dto.AppointmentRequestedDates ?? [],
             PatientRequestImages = []
         };
 
@@ -128,10 +127,7 @@ public class PatientRequestService(
 
         if (dto.Importance.HasValue)
             request.Importance = dto.Importance.Value;
-
-        if (dto.AppointmentRequestedDates is not null)
-            request.AppointmentRequestedDates = dto.AppointmentRequestedDates;
-
+        
         if (dto.ImageIdsToRemove is { Count: > 0 })
         {
             var toRemove = request.PatientRequestImages
@@ -193,5 +189,25 @@ public class PatientRequestService(
         await context.SaveChangesAsync();
 
         return new Result { Success = true, Message = "Request marked as completed" };
+    }
+    public async Task<IActionResult> GetIncomingForDoctorAsync(string doctorId)
+    {
+        var summaries = await context.PatientRequests
+            .AsNoTracking()
+            .Where(r => r.DoctorId == doctorId && !r.IsDeleted)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new PatientRequestSummaryDto(
+                r.Id,
+                r.Subject,
+                r.Message.Length > 100 ? r.Message.Substring(0, 100) + "..." : r.Message,
+                r.Importance,
+                r.DoctorId,
+                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted),
+                r.IsCompleted ? "Completed" : "Active",
+                r.CreatedAt
+            ))
+            .ToListAsync();
+
+        return new Result<List<PatientRequestSummaryDto>> { Success = true, Data = summaries };
     }
 }

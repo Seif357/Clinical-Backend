@@ -219,4 +219,26 @@ public class DoctorRequestService(
 
         return new Result { Success = true, Message = "Request marked as completed" };
     }
+    // Patient-scoped: all doctor requests directed at this patient
+    public async Task<IActionResult> GetIncomingForPatientAsync(string patientId)
+    {
+        var summaries = await context.DoctorRequests
+            .AsNoTracking()
+            .Where(r => r.PatientId == patientId && !r.IsDeleted)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new DoctorRequestSummaryDto(
+                r.Id,
+                r.Subject,
+                r.Message.Length > 100 ? r.Message.Substring(0, 100) + "..." : r.Message,
+                r.Importance,
+                r.RequestType,
+                r.PatientId,
+                context.PatientResponses.Count(pr => pr.DoctorRequestId == r.Id && !pr.IsDeleted),
+                r.IsCompleted ? "Completed" : "Active",
+                r.CreatedAt
+            ))
+            .ToListAsync();
+
+        return new Result<List<DoctorRequestSummaryDto>> { Success = true, Data = summaries };
+    }
 }

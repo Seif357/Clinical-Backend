@@ -1,12 +1,6 @@
-namespace Domain.Models.Auth;
+using Application.Dto.AuthDto;
 
-public enum OtpPurpose
-{
-    EmailVerification = 1,
-    PhoneVerification,
-    ForgotPassword,
-    PasswordChangeConfirmation   // used by the "update password via email" flow
-}
+namespace Domain.Models.Auth;
 
 /// <summary>
 /// A short-lived, single-use code sent to e-mail or SMS.
