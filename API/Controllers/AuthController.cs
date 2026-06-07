@@ -154,6 +154,19 @@ public class AuthController(IAuthService authService,
                 return BadRequest();
             }
     }
+    [HttpPost("delete/otp")]
+    [Authorize]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RequestDeleteOtp()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+ 
+        var result = await authService.RequestDeleteAccountOtpAsync(userId);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
     
     [HttpDelete("delete")]
     [Authorize]
