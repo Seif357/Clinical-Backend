@@ -13,5 +13,6 @@ public interface IAuthService
     Task<bool> RevokeTokenServiceAsync(string refreshToken, string? revokeReason = null);
     Task<GoogleLoginResult> GoogleLoginServiceAsync(GoogleLoginDto dto);
     Task<AuthResult> GoogleRegisterDoctorAsync(GoogleRegisterDoctorDto dto);
+    Task<Result> RequestDeleteAccountOtpAsync(string userId);
     Task<Result> DeleteAccountService(string userId, string? userRole, DeleteAccountDto dto);
 }
