@@ -1,3 +1,4 @@
+using Application.Dto.AuthDto;
 using Application.Interfaces;
 using Domain.Models.Auth;
 using Infrastructure.DataAccess;

@@ -11,4 +11,5 @@ public interface IDoctorRequestService
     Task<IActionResult> UpdateAsync(string doctorId, int requestId, UpdateDoctorRequestDto dto);
     Task<IActionResult> DeleteAsync(string doctorId, int requestId);
     Task<IActionResult> MarkCompleteAsync(string doctorId, int requestId);
+    Task<IActionResult> GetIncomingForPatientAsync(string patientId);
 }

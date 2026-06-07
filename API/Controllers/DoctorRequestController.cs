@@ -58,4 +58,14 @@ public class DoctorRequestController(IDoctorRequestService doctorRequestService)
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return await doctorRequestService.MarkCompleteAsync(id, requestId);
     }
+    /// <summary>
+    /// (Patient) Get all doctor requests directed to the authenticated patient.
+    /// </summary>
+    [HttpGet("incoming")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetIncoming()
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await doctorRequestService.GetIncomingForPatientAsync(id);
+    }
 }

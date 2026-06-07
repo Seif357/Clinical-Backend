@@ -1,3 +1,4 @@
+using Application.Dto.AuthDto;
 using Domain.Models.Auth;
 
 namespace Infrastructure.Repositories.Interfaces;

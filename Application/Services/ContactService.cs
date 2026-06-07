@@ -7,7 +7,6 @@ using Domain.Models.Auth;
 using Infrastructure.DataAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using OtpPurpose = Domain.Models.Auth.OtpPurpose;
 
 namespace Application.Services;
 

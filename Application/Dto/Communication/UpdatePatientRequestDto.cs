@@ -8,7 +8,6 @@ public record UpdatePatientRequestDto
 string? Subject,
 string? Message,
 RequestImportance? Importance,
-List<DateOnly>? AppointmentRequestedDates,
 List<IFormFile>? NewImages,
 List<int>? ImageIdsToRemove
 );

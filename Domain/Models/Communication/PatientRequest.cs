@@ -9,5 +9,4 @@ public class PatientRequest : ParentEntity
     public bool IsCompleted { get; set; } = false;
     public RequestImportance Importance { get; set; }
     public ICollection<PatientRequestImage> PatientRequestImages { get; set; }
-    public ICollection<DateOnly> AppointmentRequestedDates { get; set; }
 }
