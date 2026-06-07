@@ -14,7 +14,8 @@ public class DoctorRequestService(
     AppDbContext context,
     IFileStorageService fileStorage,
     INotificationService notificationService,
-    IMedicationService medicationService) : IDoctorRequestService
+    IMedicationService medicationService,
+    IImageUrlHelper imageUrlHelper) : IDoctorRequestService
 {
     public async Task<IActionResult> GetAllSummaryAsync(string doctorId)
     {
@@ -52,12 +53,21 @@ public class DoctorRequestService(
         if (request is null)
             return new Result { Success = false, Message = "Request not found" };
 
+        // Resolve image paths to full URLs the frontend can use
+        foreach (var img in request.DoctorReqestImages)
+            img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
+
         var responses = await context.PatientResponses
             .AsNoTracking()
             .Include(pr => pr.PatientResponseImages)
             .Where(pr => pr.DoctorRequestId == requestId && !pr.IsDeleted)
             .OrderBy(pr => pr.CreatedAt)
             .ToListAsync();
+
+        // Resolve image paths in each patient response
+        foreach (var resp in responses)
+            foreach (var img in resp.PatientResponseImages)
+                img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
         return new Result<object>
         {
@@ -115,6 +125,10 @@ public class DoctorRequestService(
             SentAt = request.CreatedAt
         });
 
+        // Resolve stored paths to full URLs before returning
+        foreach (var img in request.DoctorReqestImages)
+            img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
+
         return new Result<DoctorRequest> { Success = true, Data = request, Message = "Request sent successfully" };
     }
 
@@ -163,6 +177,10 @@ public class DoctorRequestService(
 
         request.UpdatedAt = DateTime.Now;
         await context.SaveChangesAsync();
+
+        // Resolve stored paths to full URLs before returning
+        foreach (var img in request.DoctorReqestImages)
+            img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
         return new Result<DoctorRequest> { Success = true, Data = request, Message = "Request updated successfully" };
     }

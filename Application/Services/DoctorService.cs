@@ -15,7 +15,8 @@ namespace Application.Services;
 
 public class DoctorService(AppDbContext context,
     UserManager<AppUser> userManager,
-    IFileStorageService fileStorage) : IDoctorService
+    IFileStorageService fileStorage,
+    IImageUrlHelper imageUrlHelper) : IDoctorService
 {
     public async Task<IActionResult> GetDoctorDataServiceAsync(string userId)
     {
@@ -27,7 +28,9 @@ public class DoctorService(AppDbContext context,
         if (doctor is null)
             return new Result { Success = false, Message = "Doctor not found" };
 
-        return new Result<DoctorDto> { Success = true, Data = doctor.ToDto() };
+        var dto = doctor.ToDto();
+        var resolved = dto with { ImagePath = imageUrlHelper.Resolve(dto.ImagePath) };
+        return new Result<DoctorDto> { Success = true, Data = resolved };
     }
 
     public async Task<IActionResult> UpdateDoctorDataServiceAsync(string userId, UpdateDoctorDto dto)
@@ -156,6 +159,9 @@ public class DoctorService(AppDbContext context,
             })
             .ToListAsync();
  
+        foreach (var item in items)
+            item.ImagePath = imageUrlHelper.Resolve(item.ImagePath);
+ 
         return new Result
         {
             Success = true,
@@ -231,6 +237,9 @@ public class DoctorService(AppDbContext context,
                 BloodType   = p.BloodType.HasValue ? p.BloodType.Value.ToString() : null
             })
             .ToListAsync();
+
+        foreach (var p in patients)
+            p.ImagePath = imageUrlHelper.Resolve(p.ImagePath);
 
         return new Result { Success = true, Data = patients };
     }

@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IFileStorageService, FileStorageService>();
+        services.AddScoped<IImageUrlHelper, ImageUrlHelper>();
 
         services.AddIdentity<AppUser, IdentityRole<int>>(options =>
             {

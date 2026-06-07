@@ -26,8 +26,8 @@ public class AuthService(
     AppDbContext context,
     IRefreshTokenRepository refreshTokenRepository,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<GoogleAuthSettings> googleAuthSettings) : IAuthService
-
+    IOptions<GoogleAuthSettings> googleAuthSettings,
+    IEmailService emailService) : IAuthService
 {
     public async Task<Result> RegisterServiceAsync(RegisterDto registerDto)
     {
@@ -70,31 +70,32 @@ public class AuthService(
                     };
                 }
 
-                role = "Doctor";
-                await context.Doctors.AddAsync(new Doctor
-                {
-                    UserId = newUser.Id,
-                    ProfessionalPracticeLicense = registerDto.ProfessionalPracticeLicense,
-                    IssuingAuthority = registerDto.IssuingAuthority
-                });
-            }
-            else
+            role = "Doctor";
+            await context.Doctors.AddAsync(new Doctor
             {
-                role = "Patient";
-                await context.Patients.AddAsync(new Patient
-                {
-                    UserId = newUser.Id
-                });
-            }
-            
-            var roleResult = await userManager.AddToRoleAsync(newUser, role);
-            if (!roleResult.Succeeded)
-            {
-                await transaction.RollbackAsync();
-                return new Result { Success = false, Message = "Failed to assign role to new user" };
-            }
- 
-            // Seed primary email row
+                UserId = newUser.Id,
+                ProfessionalPracticeLicense = registerDto.ProfessionalPracticeLicense,
+                IssuingAuthority = registerDto.IssuingAuthority
+            });
+        }
+        else
+        {
+            role = "Patient";
+            await context.Patients.AddAsync(new Patient { UserId = newUser.Id });
+        }
+
+        var roleResult = await userManager.AddToRoleAsync(newUser, role);
+        if (!roleResult.Succeeded)
+        {
+            await transaction.RollbackAsync();
+            return new Result { Success = false, Message = "Failed to assign role to new user" };
+        }
+
+        var emailRowExists = await context.UserEmails
+            .AnyAsync(e => e.Email == registerDto.Email.ToLowerInvariant());
+
+        if (!emailRowExists)
+        {
             await context.UserEmails.AddAsync(new UserEmail
             {
                 UserId     = newUser.Id,
@@ -103,11 +104,36 @@ public class AuthService(
                 IsVerified = false,
                 CreatedAt  = DateTime.UtcNow
             });
- 
-            await context.SaveChangesAsync();
-            await transaction.CommitAsync();
- 
-            return new Result { Success = true, Message = AuthConstants.Messages.UserRegisteredSuccessfully };
+        }
+
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        string message;
+        if (registerDto.IsDoctor)
+        {
+            if (!string.IsNullOrWhiteSpace(registerDto.Email))
+            {
+                var html = $"""
+                            <div style="font-family:sans-serif;max-width:520px;margin:auto">
+                              <h2 style="color:#f59e0b">Registration Under Review – Clinical</h2>
+                              <p>Hi <strong>{registerDto.Username ?? "Doctor"}</strong>,</p>
+                              <p>Your doctor registration has been received and is currently <strong>under review</strong>. We'll notify you once a decision has been made.</p>
+                              <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0"/>
+                              <p style="color:#6b7280;font-size:13px">If you have any questions, please reach out to our support team.</p>
+                            </div>
+                            """;
+                _ = emailService.SendAsync(registerDto.Email, "Your Clinical registration is under review", html);
+            }
+
+            message = AuthConstants.Messages.RegisterationSubmitted;
+        }
+        else
+        {
+            message = AuthConstants.Messages.UserRegisteredSuccessfully;
+        }
+
+        return new Result { Success = true, Message = message };
     }
 
     public async Task<AuthResult> LoginServiceAsync(LoginDto loginDto)
@@ -145,7 +171,6 @@ public class AuthService(
                     };
                 }
             }
-            await context.SaveChangesAsync();
             var claims = await GenerateUserClaimsAsync(user);
             var accessToken = jwtTokenService.GenerateAccessToken(claims);
             var refreshToken = jwtTokenService.GenerateRefreshToken(user.Id);
@@ -394,7 +419,6 @@ public class AuthService(
             }
 
             await context.Patients.AddAsync(new Patient { UserId = newUser.Id });
-            await context.SaveChangesAsync();
 
             var roleResult = await userManager.AddToRoleAsync(newUser, "Patient");
             if (!roleResult.Succeeded)
@@ -458,7 +482,23 @@ public class AuthService(
         // 2. Guard: account must not already exist
         var existingUser = await userManager.FindByEmailAsync(email);
         if (existingUser != null)
-            return new AuthResult { Success = false, Message = "An account with this Google address already exists. Please use the login endpoint." };
+            return new AuthResult
+            {
+                Success = false,
+                Message = "An account with this Google address already exists. Please use the login endpoint."
+            };
+
+        // Guard 2: check UserEmails table for orphaned rows from previous partial failures.
+        // When MARS is enabled, SaveChangesAsync() calls inside a transaction can commit
+        // individually even if a later step fails and the transaction is rolled back.
+        // This leaves ghost rows that would cause a duplicate-key crash on the next attempt.
+        var emailTaken = await context.UserEmails.AnyAsync(e => e.Email == email.ToLowerInvariant());
+        if (emailTaken)
+            return new AuthResult
+            {
+                Success = false,
+                Message = "An account with this email already exists. Please use the login endpoint or contact support."
+            };
 
         var username = await GenerateUniqueUsernameAsync(payload.Name ?? email.Split('@')[0]);
 
@@ -490,7 +530,6 @@ public class AuthService(
                 ProfessionalPracticeLicense = dto.ProfessionalPracticeLicense,
                 IssuingAuthority            = dto.IssuingAuthority
             });
-            await context.SaveChangesAsync();
 
             var roleResult = await userManager.AddToRoleAsync(newUser, "Doctor");
             if (!roleResult.Succeeded)
@@ -511,7 +550,19 @@ public class AuthService(
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return new AuthResult { Success = false, Message = AuthConstants.Messages.StatusPending };
+            // Send "registration under review" email
+            var html = $"""
+                        <div style="font-family:sans-serif;max-width:520px;margin:auto">
+                          <h2 style="color:#f59e0b">Registration Under Review – Clinical</h2>
+                          <p>Hi <strong>{username}</strong>,</p>
+                          <p>Your doctor registration has been received and is currently <strong>under review</strong>. We'll notify you once a decision has been made.</p>
+                          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0"/>
+                          <p style="color:#6b7280;font-size:13px">If you have any questions, please reach out to our support team.</p>
+                        </div>
+                        """;
+            _ = emailService.SendAsync(email, "Your Clinical registration is under review", html);
+
+            return new AuthResult { Success = true, Message = AuthConstants.Messages.RegisterationSubmitted };
         }
         catch (Exception ex)
         {
@@ -523,31 +574,27 @@ public class AuthService(
     {
         var userExists = await context.Users
             .Where(u => u.UserName == username || u.Email == email)
-            .Select(u => new { u.Id, u.UserName, u.Email})
+            .Select(u => new { u.UserName, u.Email })
             .FirstOrDefaultAsync();
 
-        if (userExists is null)
+        if (userExists is not null)
         {
-            return new Result
-            {
-                Success = true
-            };
+            var message = userExists.UserName == username
+                ? AuthConstants.Messages.UsernameAlreadyExists
+                : AuthConstants.Messages.EmailAlreadyExists;
+            return new Result { Success = false, Message = message };
         }
 
-        var message = userExists.UserName == username
-            ? AuthConstants.Messages.UsernameAlreadyExists
-            : AuthConstants.Messages.EmailAlreadyExists;
+        // Also check UserEmails table — guards against orphaned rows left by prior partial failures
+        var emailRowExists = await context.UserEmails.AnyAsync(e => e.Email == email.ToLowerInvariant());
+        if (emailRowExists)
+            return new Result { Success = false, Message = AuthConstants.Messages.EmailAlreadyExists };
 
-        return new Result
-        {
-            Success = false, 
-            Message = message
-        };
+        return new Result { Success = true };
     }
     private async Task<Result<AppUser>> VerifyPasswordAsync(string userId, string password)
     {
         var user = await userManager.FindByIdAsync(userId);
-
         if (user == null || !await userManager.CheckPasswordAsync(user, password) || user.IsDeleted)
         {
             return new Result<AppUser>

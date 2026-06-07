@@ -4,6 +4,7 @@ public static class AuthConstants
 {
     public static class Messages
     {
+        public const string RegisterationSubmitted = "Registration submitted successfully wait for approval";
         public const string InvalidCredentials = "Invalid Credentials!";
         public const string UserNotFound = "User not found";
         public const string EmailAlreadyExists = "Email already exists!";

@@ -48,6 +48,7 @@ public static class Program
             // Add Serilog to the logging pipeline
             builder.Host.UseSerilog();
 
+            builder.Services.AddHttpContextAccessor();
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -96,6 +97,7 @@ public static class Program
             
             app.MapOpenApi();
             app.UseCors();
+            app.UseStaticFiles(); // serves wwwroot (uploaded images, etc.)
             app.Map("/", () => Results.Redirect("/scalar/v1", true));
             app.UseHttpsRedirection();
             app.MapScalarApiReference(options =>
