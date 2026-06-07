@@ -160,15 +160,15 @@ public class AuthController(IAuthService authService,
     [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> DeleteAccount([FromBody]DeleteAccountDto dto)
+    public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userRole = User.FindFirstValue(ClaimTypes.Role);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        
-        var result = await authService.DeleteAccountService(userId, userRole,dto.Password);
+ 
+        var result = await authService.DeleteAccountService(userId, userRole, dto);
         if (!result.Success) return BadRequest(result);
-
+ 
         AuthHelper.DeleteRefreshTokenCookie(Response, environment);
         return Ok(result);
     }

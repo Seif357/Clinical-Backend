@@ -28,7 +28,8 @@ public class AuthService(
     IRefreshTokenRepository refreshTokenRepository,
     IHttpContextAccessor httpContextAccessor,
     IOptions<GoogleAuthSettings> googleAuthSettings,
-    IEmailService emailService) : IAuthService
+    IEmailService emailService,
+    IOtpService otpService) : IAuthService
 {
     public async Task<Result> RegisterServiceAsync(RegisterDto registerDto)
     {
@@ -548,41 +549,99 @@ public class AuthService(
         }
     }
 
-    public async Task<Result> DeleteAccountService(string userId, string userRole, string password)
+    public async Task<Result> RequestDeleteAccountOtpAsync(string userId)
     {
-        if (userRole.IsAdmin())
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null || user.IsDeleted)
+            return Fail(AuthConstants.Messages.UserNotFound);
+
+        if (!user.IsGoogleUser)
+            return Fail("This endpoint is only for Google-authenticated accounts. Use your password to delete your account.");
+
+        var primaryEmail = await GetPrimaryEmailAsync(user);
+        if (primaryEmail is null)
+            return Fail("No verified email on file. Please contact support to delete your account.");
+
+        await otpService.IssueAsync(
+            user.Id,
+            user.UserName ?? user.Email!,
+            primaryEmail,
+            OtpPurpose.AccountDeletion);
+
+        return Ok($"A deletion confirmation code has been sent to {MaskEmail(primaryEmail)}. It expires in 10 minutes.");
+    }
+
+    public async Task<Result> DeleteAccountService(string userId, string? userRole, DeleteAccountDto dto)
+    {
+        if (userRole is not null && userRole.IsAdmin())
+            return Fail("Can't delete this account");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null || user.IsDeleted)
+            return Fail(AuthConstants.Messages.UserNotFound);
+
+        if (user.IsGoogleUser)
         {
-            return new Result
-            {
-                Success = false,
-                Message = "Can't delete this account"
-            };
+            if (string.IsNullOrWhiteSpace(dto.OtpCode))
+                return Fail("Your account uses Google sign-in. Please request a deletion code via POST /api/auth/delete/otp and provide it in the 'otpCode' field.");
+
+            var record = await otpService.VerifyAsync(user.Id, OtpPurpose.AccountDeletion, dto.OtpCode);
+            if (record is null)
+                return Fail("Invalid or expired verification code. Request a new one via POST /api/auth/delete/otp.");
         }
-        var verificationResult = await VerifyPasswordAsync(userId, password);
-        if (!verificationResult.Success)
-            return new Result { Success = false, Message = verificationResult.Message };
- 
-        var user = verificationResult.Data!;
+        else
+        {
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                return Fail("Password is required to delete your account.");
+
+            if (!await userManager.CheckPasswordAsync(user, dto.Password))
+                return Fail(AuthConstants.Messages.InvalidCredentials);
+        }
+
+        return await PerformDeletionAsync(user, userRole);
+    }
+
+    private async Task<Result> PerformDeletionAsync(AppUser user, string? userRole)
+    {
         user.IsDeleted = true;
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
-            return new Result { Success = false, Message = string.Join(", ", updateResult.Errors.Select(e => e.Description)) };
- 
+            return Fail(string.Join(", ", updateResult.Errors.Select(e => e.Description)));
+
         await refreshTokenRepository.RevokeAllUserTokensAsync(user.Id, RevokeConstants.Messages.UserDeleted);
- 
-        if (userRole.IsDoctor())
+
+        if (userRole is not null && userRole.IsDoctor())
         {
             var doctor = await context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
-            if (doctor != null) doctor.IsDeleted = true;
+            if (doctor is not null) doctor.IsDeleted = true;
         }
-        else if (userRole.IsPatient())
+        else
         {
             var patient = await context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
-            if (patient != null) patient.IsDeleted = true;
+            if (patient is not null) patient.IsDeleted = true;
         }
- 
+
         await context.SaveChangesAsync();
-        return new Result { Success = true, Message = "Account deleted successfully" };
+        return Ok("Account deleted successfully");
+    }
+
+    private async Task<string?> GetPrimaryEmailAsync(AppUser user)
+    {
+        return await context.UserEmails
+            .Where(e => e.UserId == user.Id && e.IsPrimary && e.IsVerified)
+            .Select(e => e.Email)
+            .FirstOrDefaultAsync()
+            ?? user.Email;
+    }
+
+    private static Result Ok(string message) => new() { Success = true, Message = message };
+    private static Result Fail(string message) => new() { Success = false, Message = message };
+
+    private static string MaskEmail(string email)
+    {
+        var at = email.IndexOf('@');
+        if (at <= 1) return email;
+        return email[0] + new string('*', Math.Min(at - 1, 4)) + email[at..];
     }
 
     private async Task<Result> CheckExistence(string username, string email)
@@ -633,7 +692,8 @@ public class AuthService(
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
-            new(ClaimTypes.Email, user.Email!)
+            new(ClaimTypes.Email, user.Email!),
+            new("auth_provider", user.IsGoogleUser ? "google" : "local")
         };
         var roles = await userManager.GetRolesAsync(user);
         foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));

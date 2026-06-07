@@ -5,10 +5,7 @@ namespace Application.Interfaces;
  
 public interface IOtpService
 {
-    /// <summary>
-    /// Creates a 6-digit OTP, persists it (hashed), and sends it.
-    /// For PasswordChangeConfirmation pass pendingPasswordHash to store atomically.
-    /// </summary>
+
     Task<string> IssueAsync(
         int userId,
         string displayName,

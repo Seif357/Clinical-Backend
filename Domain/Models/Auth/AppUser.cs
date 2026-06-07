@@ -8,4 +8,5 @@ public class AppUser : IdentityUser<int>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; }
     public List<RefreshToken> RefreshTokens { get; set; } = new();
+    public bool IsGoogleUser => PasswordHash is null;
 }
