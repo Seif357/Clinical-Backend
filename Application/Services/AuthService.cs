@@ -316,7 +316,7 @@ public class AuthService(
         {
             var settings = new GoogleJsonWebSignature.ValidationSettings
             {
-                Audience = new[] { googleAuthSettings.Value.ClientId }
+                Audience = new[] { googleAuthSettings.Value.ClientId,googleAuthSettings.Value.AndroidClientId }
             };
             payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
         }
