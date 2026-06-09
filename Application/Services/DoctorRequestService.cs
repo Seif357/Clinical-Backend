@@ -33,8 +33,7 @@ public class DoctorRequestService(
                 r.Importance,
                 r.RequestType,
                 r.PatientId,
-                context.PatientResponses
-                    .Count(pr => pr.DoctorRequestId == r.Id && !pr.IsDeleted),
+                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted)+context.PatientResponses.Count(pt=>pt.DoctorRequestId == r.Id && !pt.IsDeleted),
                 r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))
@@ -53,21 +52,48 @@ public class DoctorRequestService(
         if (request is null)
             return new Result { Success = false, Message = "Request not found" };
 
-        // Resolve image paths to full URLs the frontend can use
         foreach (var img in request.DoctorReqestImages)
             img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
-        var responses = await context.PatientResponses
+        // Doctor follow-ups on their own request (no images — DoctorResponse has none)
+        var doctorFollowUps = await context.DoctorResponses
             .AsNoTracking()
-            .Include(pr => pr.PatientResponseImages)
-            .Where(pr => pr.DoctorRequestId == requestId && !pr.IsDeleted)
-            .OrderBy(pr => pr.CreatedAt)
+            .Where(dr => dr.PatientRequest_Id == requestId && !dr.IsDeleted)
+            .Select(dr => new UnifiedResponseDto
+            {
+                Id = dr.Id,
+                Message = dr.Message,
+                CreatedAt = dr.CreatedAt,
+                SenderType = "Doctor",
+                AppointmentSchedule = dr.AppointmentSchedule
+            })
             .ToListAsync();
 
-        // Resolve image paths in each patient response
-        foreach (var resp in responses)
-            foreach (var img in resp.PatientResponseImages)
-                img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
+        // Patient replies to this doctor request
+        var patientResponses = await context.PatientResponses
+            .AsNoTracking()
+            .Where(pr => pr.DoctorRequestId == requestId && !pr.IsDeleted)
+            .Select(pr => new UnifiedResponseDto
+            {
+                Id = pr.Id,
+                Message = pr.Message,
+                CreatedAt = pr.CreatedAt,
+                SenderType = "Patient",
+                Subject = pr.Subject,
+                Images = pr.PatientResponseImages
+                    .Select(img => img.ImagePath)
+                    .ToList()
+            })
+            .ToListAsync();
+
+        // Resolve stored paths to full URLs — must happen after projection, not inside Select
+        foreach (var resp in patientResponses.Where(r => r.Images != null))
+            resp.Images = resp.Images!.Select(path => imageUrlHelper.Resolve(path)!).ToList();
+
+        var responses = doctorFollowUps
+            .Concat(patientResponses)
+            .OrderBy(r => r.CreatedAt)
+            .ToList();
 
         return new Result<object>
         {
@@ -233,7 +259,7 @@ public class DoctorRequestService(
                 r.Importance,
                 r.RequestType,
                 r.PatientId,
-                context.PatientResponses.Count(pr => pr.DoctorRequestId == r.Id && !pr.IsDeleted),
+                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted)+context.PatientResponses.Count(pt=>pt.DoctorRequestId == r.Id && !pt.IsDeleted),
                 r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))

@@ -53,6 +53,7 @@ public static class Program
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+                    options.JsonSerializerOptions.Converters.Add(new Application.Helpers.EgyptDateTimeConverter());
                 });
             builder.Services.AddSignalR();
             builder.Services.AddScoped<INotificationService, NotificationService>(); 

@@ -1,5 +1,6 @@
 using Application.Dto.Schedule;
 using Application.DTOs;
+using Application.Helpers;
 using Application.Interfaces;
 using Domain.Models.Schedule;
 using Infrastructure.DataAccess;
@@ -148,6 +149,7 @@ public class ScheduleService(
         if (schedule is null)
             return Ok("No schedule.", new List<ScheduleSlotDto>());
 
+        // Slots are stored as Egypt local time, so a plain DateOnly→DateTime comparison is correct.
         var dayStart = date.ToDateTime(TimeOnly.MinValue);
         var dayEnd = date.ToDateTime(TimeOnly.MaxValue);
         var slots = await GetSlotsWithPatients(schedule.Id, dayStart, dayEnd);
@@ -179,7 +181,8 @@ public class ScheduleService(
         if (schedule is null)
             return Ok("This doctor has no schedule yet.", new List<ScheduleSlotDto>());
 
-        var now = DateTime.UtcNow;
+        // Slots are stored as Egypt local time — compare with Egypt "now".
+        var now = EgyptTimeHelper.NowEgypt;
         var slots = await context.ScheduleSlots
             .Where(s => s.ScheduleId == schedule.Id &&
                         !s.IsDeleted &&
@@ -200,7 +203,8 @@ public class ScheduleService(
 
         if (slot is null) return Fail("Slot not found.");
         if (slot.Status != AppointmentStatus.Available) return Fail("This slot is not available for booking.");
-        if (slot.StartTime <= DateTime.UtcNow) return Fail("Cannot book a slot in the past.");
+        // Slots stored as Egypt local time — use Egypt now for the past-check.
+        if (slot.StartTime <= EgyptTimeHelper.NowEgypt) return Fail("Cannot book a slot in the past.");
 
         // Check patient doesn't already have a booking at the same time with this doctor
         var conflict = await context.ScheduleSlots.AnyAsync(s =>
@@ -216,7 +220,8 @@ public class ScheduleService(
         slot.PatientId = patientUserId;
         slot.Status = AppointmentStatus.Booked;
         slot.PatientNotes = dto.PatientNotes;
-        slot.BookedAt = DateTime.UtcNow;
+        // Store BookedAt as Egypt local time so it displays correctly to the user.
+        slot.BookedAt = EgyptTimeHelper.NowEgypt;
         slot.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
@@ -235,7 +240,7 @@ public class ScheduleService(
         if (oldSlot is null) return Fail("Original slot not found.");
         if (oldSlot.PatientId != patientUserId) return Fail("You do not own this appointment.");
         if (oldSlot.Status != AppointmentStatus.Booked) return Fail("Only booked appointments can be rescheduled.");
-        if (oldSlot.StartTime <= DateTime.UtcNow) return Fail("Cannot reschedule a past appointment.");
+        if (oldSlot.StartTime <= EgyptTimeHelper.NowEgypt) return Fail("Cannot reschedule a past appointment.");
 
         var newSlot = await context.ScheduleSlots
             .Include(s => s.Schedule)
@@ -243,7 +248,7 @@ public class ScheduleService(
 
         if (newSlot is null) return Fail("New slot not found.");
         if (newSlot.Status != AppointmentStatus.Available) return Fail("The target slot is not available.");
-        if (newSlot.StartTime <= DateTime.UtcNow) return Fail("Cannot book a slot in the past.");
+        if (newSlot.StartTime <= EgyptTimeHelper.NowEgypt) return Fail("Cannot book a slot in the past.");
 
         // Must be same doctor
         if (newSlot.Schedule.DoctorId != oldSlot.Schedule.DoctorId)
@@ -260,7 +265,7 @@ public class ScheduleService(
         newSlot.PatientId = patientUserId;
         newSlot.Status = AppointmentStatus.Booked;
         newSlot.PatientNotes = dto.PatientNotes;
-        newSlot.BookedAt = DateTime.UtcNow;
+        newSlot.BookedAt = EgyptTimeHelper.NowEgypt;
         newSlot.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
@@ -296,7 +301,8 @@ public class ScheduleService(
 
     public async Task<Result> GetMyAppointmentsAsync(int patientUserId)
     {
-        var now = DateTime.UtcNow;
+        // Compare stored Egypt local times against Egypt "now".
+        var now = EgyptTimeHelper.NowEgypt;
         var slots = await context.ScheduleSlots
             .Include(s => s.Schedule).ThenInclude(sc => sc.Doctor).ThenInclude(d => d.DoctorData)
             .Where(s => s.PatientId == patientUserId &&
@@ -359,6 +365,7 @@ public class ScheduleService(
         return slots.Select(s => MapSlot(s, s.Patient?.PatientData?.UserName)).ToList();
     }
 
+    // Slots are stored as Egypt local time — no conversion needed on the way out.
     private static ScheduleSlotDto MapSlot(ScheduleSlot s, string? patientName) => new(
         s.Id,
         s.StartTime,
