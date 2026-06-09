@@ -19,11 +19,18 @@ public class PatientResponseService(
     {
         var doctorRequest = await context.DoctorRequests
             .FirstOrDefaultAsync(r => r.Id == dto.DoctorRequestId && !r.IsDeleted);
+        var patientRequest = await context.PatientRequests
+            .FirstOrDefaultAsync(r => r.Id == dto.DoctorRequestId && !r.IsDeleted);
 
-        if (doctorRequest is null)
-            return new Result { Success = false, Message = "Doctor request not found" };
+        if (doctorRequest is null && patientRequest is null)
+            return new Result { Success = false, Message = "Request not found" };
 
-        if (doctorRequest.PatientId != patientId)
+        // Resolve the owning patient and target doctor from whichever request was found.
+        // Using null-coalescing here avoids NullReferenceException when only one is non-null.
+        var requestPatientId = doctorRequest?.PatientId ?? patientRequest?.PatientId;
+        var requestDoctorId  = doctorRequest?.DoctorId  ?? patientRequest?.DoctorId;
+
+        if (requestPatientId != patientId)
             return new Result { Success = false, Message = "This request was not directed at you" };
 
         var response = new PatientResponse
@@ -47,7 +54,7 @@ public class PatientResponseService(
         await context.PatientResponses.AddAsync(response);
         await context.SaveChangesAsync();
 
-        await notificationService.NotifyUserAsync(doctorRequest.DoctorId, "NewPatientResponse", new
+        await notificationService.NotifyUserAsync(requestDoctorId!, "NewPatientResponse", new
         {
             response.Id,
             response.Subject,

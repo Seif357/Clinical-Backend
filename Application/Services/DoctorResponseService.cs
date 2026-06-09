@@ -17,11 +17,17 @@ public class DoctorResponseService(
     {
         var patientRequest = await context.PatientRequests
             .FirstOrDefaultAsync(r => r.Id == dto.PatientRequestId && !r.IsDeleted);
+        var doctorRequest = await context.DoctorRequests
+            .FirstOrDefaultAsync(r => r.Id == dto.PatientRequestId && !r.IsDeleted);
 
-        if (patientRequest is null)
-            return new Result { Success = false, Message = "Patient request not found" };
+        if (patientRequest is null && doctorRequest is null)
+            return new Result { Success = false, Message = "Request not found" };
 
-        if (patientRequest.DoctorId != doctorId)
+        // Prefer patientRequest; fall back to doctorRequest if only a DoctorRequest exists.
+        var requestPatientId = patientRequest?.PatientId ?? doctorRequest?.PatientId;
+        var requestDoctorId  = patientRequest?.DoctorId  ?? doctorRequest?.DoctorId;
+
+        if (requestDoctorId != doctorId)
             return new Result { Success = false, Message = "This request was not directed at you" };
 
         var response = new DoctorResponse
@@ -35,7 +41,7 @@ public class DoctorResponseService(
         await context.DoctorResponses.AddAsync(response);
         await context.SaveChangesAsync();
 
-        await notificationService.NotifyUserAsync(patientRequest.PatientId, "NewDoctorResponse", new
+        await notificationService.NotifyUserAsync(requestPatientId!, "NewDoctorResponse", new
         {
             response.Id,
             response.Message,

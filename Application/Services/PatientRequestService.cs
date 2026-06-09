@@ -1,3 +1,4 @@
+using Application.Dto;
 using Application.Dto.AuthDto;
 using Application.Dto.Communication;
 using Application.DTOs;
@@ -29,7 +30,7 @@ public class PatientRequestService(
                 r.Message.Length > 100 ? r.Message.Substring(0, 100) + "..." : r.Message,
                 r.Importance,
                 r.DoctorId,
-                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted),
+                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted)+context.PatientResponses.Count(pt=>pt.DoctorRequestId == r.Id && !pt.IsDeleted),
                 r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))
@@ -52,12 +53,42 @@ public class PatientRequestService(
         foreach (var img in request.PatientRequestImages)
             img.ImagePath = imageUrlHelper.Resolve(img.ImagePath)!;
 
-        var responses = await context.DoctorResponses
+        var doctorResponses = await context.DoctorResponses
             .AsNoTracking()
             .Where(dr => dr.PatientRequest_Id == requestId && !dr.IsDeleted)
-            .OrderBy(dr => dr.CreatedAt)
+            .Select(dr => new UnifiedResponseDto
+            {
+                Id = dr.Id,
+                Message = dr.Message,
+                CreatedAt = dr.CreatedAt,
+                SenderType = "Doctor",
+                AppointmentSchedule = dr.AppointmentSchedule
+            })
             .ToListAsync();
 
+        var patientResponses = await context.PatientResponses
+            .AsNoTracking()
+            .Where(pr => pr.DoctorRequestId == requestId && !pr.IsDeleted)
+            .Select(pr => new UnifiedResponseDto
+            {
+                Id = pr.Id,
+                Message = pr.Message,
+                CreatedAt = pr.CreatedAt,
+                SenderType = "Patient",
+                Subject = pr.Subject,
+                Images = pr.PatientResponseImages
+                    .Select(img => img.ImagePath)
+                    .ToList()
+            })
+            .ToListAsync();
+        
+        foreach (var resp in patientResponses.Where(r => r.Images != null))
+            resp.Images = resp.Images!.Select(path => imageUrlHelper.Resolve(path)!).ToList();
+
+        var responses = doctorResponses
+            .Concat(patientResponses)
+            .OrderBy(r => r.CreatedAt)
+            .ToList();
         return new Result<object>
         {
             Success = true,
@@ -202,7 +233,7 @@ public class PatientRequestService(
                 r.Message.Length > 100 ? r.Message.Substring(0, 100) + "..." : r.Message,
                 r.Importance,
                 r.DoctorId,
-                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted),
+                context.DoctorResponses.Count(dr => dr.PatientRequest_Id == r.Id && !dr.IsDeleted)+context.PatientResponses.Count(pt=>pt.DoctorRequestId == r.Id && !pt.IsDeleted),
                 r.IsCompleted ? "Completed" : "Active",
                 r.CreatedAt
             ))
