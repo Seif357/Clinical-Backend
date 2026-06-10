@@ -42,12 +42,12 @@ public class DoctorRequestService(
         return new Result<List<DoctorRequestSummaryDto>> { Success = true, Data = summaries };
     }
 
-    public async Task<IActionResult> GetByIdAsync(string doctorId, int requestId)
+    public async Task<IActionResult> GetByIdAsync(string requesterId, int requestId)
     {
         var request = await context.DoctorRequests
             .AsNoTracking()
             .Include(r => r.DoctorReqestImages)
-            .FirstOrDefaultAsync(r => r.Id == requestId && r.DoctorId == doctorId && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == requestId && (r.DoctorId == requesterId||r.PatientId==requesterId) && !r.IsDeleted);
 
         if (request is null)
             return new Result { Success = false, Message = "Request not found" };

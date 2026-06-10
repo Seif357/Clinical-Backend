@@ -40,12 +40,12 @@ public class PatientRequestService(
     }
 
     // GET /{id} — full detail with images + embedded DoctorResponses
-    public async Task<IActionResult> GetByIdAsync(string patientId, int requestId)
+    public async Task<IActionResult> GetByIdAsync(string requesterId, int requestId)
     {
         var request = await context.PatientRequests
             .AsNoTracking()
             .Include(r => r.PatientRequestImages)
-            .FirstOrDefaultAsync(r => r.Id == requestId && r.PatientId == patientId && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == requestId && (r.DoctorId == requesterId||r.PatientId==requesterId) && !r.IsDeleted);
 
         if (request is null)
             return new Result { Success = false, Message = "Request not found" };
