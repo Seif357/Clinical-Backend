@@ -84,8 +84,12 @@ public static class Program
             });
             
             var app = builder.Build();
+            
+            app.MapOpenApi();
+            app.UseHttpsRedirection();
+            app.UseCors();
+            app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromMinutes(2) });
             app.UseMiddleware<AutoRefreshMiddleware>();
-            // Add Serilog request logging middleware
             app.UseSerilogRequestLogging(options =>
             {
                 options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
@@ -95,12 +99,8 @@ public static class Program
                     diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());
                 };
             });
-            
-            app.MapOpenApi();
-            app.UseCors();
             app.UseStaticFiles(); // serves wwwroot (uploaded images, etc.)
             app.Map("/", () => Results.Redirect("/scalar/v1", true));
-            app.UseHttpsRedirection();
             app.MapScalarApiReference(options =>
             {
                 options.WithTitle("My API Documentation")
